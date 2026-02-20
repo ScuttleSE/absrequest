@@ -88,13 +88,13 @@
 
 {% if items %}
 <!-- ── Card grid ─────────────────────────────────────────────────────────── -->
-<div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4 mb-4">
+<div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 row-cols-xl-6 g-3 mb-4">
   {% for item in items %}
   <div class="col">
-    <div class="card h-100 shadow-sm">
+    <div class="card h-100 border-0">
 
-      <!-- Cover -->
-      <div style="height: 200px; overflow: hidden; background: #f0f0f0;">
+      <!-- Square cover -->
+      <div style="aspect-ratio: 1 / 1; overflow: hidden; background: #e9ecef; border-radius: 0.375rem;">
         {% if item.cover_url %}
         <img
           src="{{ item.cover_url }}"
@@ -102,40 +102,23 @@
           class="w-100 h-100"
           style="object-fit: cover;"
           loading="lazy"
-          onerror="this.parentElement.innerHTML='<div class=\'w-100 h-100 d-flex align-items-center justify-content-center bg-secondary text-white\'><i class=\'bi bi-book display-4\'></i></div>'"
+          onerror="this.parentElement.innerHTML='<div class=\'w-100 h-100 d-flex align-items-center justify-content-center bg-secondary text-white\'><i class=\'bi bi-book fs-1\'></i></div>'"
         >
         {% else %}
         <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary text-white">
-          <i class="bi bi-book display-4"></i>
+          <i class="bi bi-book fs-1"></i>
         </div>
         {% endif %}
       </div>
 
-      <div class="card-body d-flex flex-column">
-        <h6 class="card-title fw-bold mb-1">{{ item.title }}</h6>
-
+      <div class="card-body px-0 pb-0 pt-2">
+        <p class="fw-semibold small mb-0 lh-sm">{{ item.title }}</p>
         {% if item.author %}
-        <p class="text-muted small mb-1">
-          <i class="bi bi-person me-1"></i>{{ item.author }}
-        </p>
+        <p class="text-muted small mb-0">{{ item.author }}</p>
         {% endif %}
-
-        {% if item.narrator %}
-        <p class="text-muted small mb-1">
-          <i class="bi bi-mic me-1"></i>{{ item.narrator }}
-        </p>
+        {% if item.duration %}
+        <p class="text-muted small mb-0">{{ item.duration }}</p>
         {% endif %}
-
-        <div class="mt-auto pt-2 d-flex flex-wrap gap-1">
-          {% if item.duration %}
-          <span class="badge text-bg-secondary">
-            <i class="bi bi-clock me-1"></i>{{ item.duration }}
-          </span>
-          {% endif %}
-          {% if item.library_name %}
-          <span class="badge text-bg-light text-dark border">{{ item.library_name }}</span>
-          {% endif %}
-        </div>
       </div>
 
     </div>
