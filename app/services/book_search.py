@@ -89,7 +89,7 @@ class BookSearchService:
                 f'https://api.audible{tld}/1.0/catalog/products',
                 params={
                     'keywords': query,
-                    'num_results': 10,
+                    'num_results': 25,
                     'products_sort_by': 'Relevance',
                 },
                 timeout=self.TIMEOUT,
@@ -108,7 +108,7 @@ class BookSearchService:
         asin_order = {asin: i for i, asin in enumerate(asins)}
         raw_results: list[dict] = []
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             futures = {
                 executor.submit(self._fetch_audnex, asin, region): asin
                 for asin in asins
