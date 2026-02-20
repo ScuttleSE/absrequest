@@ -80,6 +80,29 @@ class AudiobookRequest(db.Model):
     )
 
 
+class AppSettings(db.Model):
+    """Singleton settings row (always id=1). Use AppSettings.get() to access."""
+
+    __tablename__ = 'app_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Search providers
+    audible_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    audible_region = db.Column(db.String(10), nullable=False, default='us')
+    open_library_enabled = db.Column(db.Boolean, nullable=False, default=False)
+
+    @classmethod
+    def get(cls) -> 'AppSettings':
+        """Return the singleton settings row, creating it with defaults if absent."""
+        settings = db.session.get(cls, 1)
+        if settings is None:
+            settings = cls(id=1)
+            db.session.add(settings)
+            db.session.commit()
+        return settings
+
+
 class SyncLog(db.Model):
     __tablename__ = 'sync_logs'
 

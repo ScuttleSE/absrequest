@@ -16,7 +16,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from app import db
-from app.models import AudiobookRequest, SyncLog, User
+from app.models import AppSettings, AudiobookRequest, SyncLog, User
 
 manager = Blueprint('manager', __name__, url_prefix='/manager')
 
@@ -276,6 +276,33 @@ def sync_logs():
         'manager/sync_logs.html',
         pagination=pagination,
         logs=pagination.items,
+    )
+
+
+# ── Settings ───────────────────────────────────────────────────────────────────
+
+
+_AUDIBLE_REGIONS = ['us', 'uk', 'au', 'ca', 'de', 'fr', 'it', 'es', 'jp', 'in']
+
+
+@manager.route('/settings', methods=['GET', 'POST'])
+@manager_required
+def settings():
+    s = AppSettings.get()
+
+    if request.method == 'POST':
+        s.audible_enabled = 'audible_enabled' in request.form
+        region = request.form.get('audible_region', 'us').lower()
+        s.audible_region = region if region in _AUDIBLE_REGIONS else 'us'
+        s.open_library_enabled = 'open_library_enabled' in request.form
+        db.session.commit()
+        flash('Settings saved.', 'success')
+        return redirect(url_for('manager.settings'))
+
+    return render_template(
+        'manager/settings.html',
+        settings=s,
+        audible_regions=_AUDIBLE_REGIONS,
     )
 
 

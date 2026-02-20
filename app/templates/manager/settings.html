@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Settings — ABS Request Manager{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('manager.dashboard') }}">Manager Dashboard</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Settings</li>
+    </ol>
+  </nav>
+  <h2>Settings</h2>
+</div>
+
+<form method="POST" style="max-width: 560px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <!-- ── Search providers ───────────────────────────────────────────────────── -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header fw-semibold">
+      <i class="bi bi-search me-2"></i>Search Providers
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">
+        Enabled providers are tried in order. If the first returns no results the
+        next is tried automatically.
+      </p>
+
+      <!-- Audible -->
+      <div class="border rounded p-3 mb-3">
+        <div class="form-check form-switch mb-2">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            role="switch"
+            id="audible_enabled"
+            name="audible_enabled"
+            {% if settings.audible_enabled %}checked{% endif %}
+          >
+          <label class="form-check-label fw-semibold" for="audible_enabled">
+            <span class="badge text-bg-warning text-dark me-1">Audible</span>
+            Audible
+          </label>
+        </div>
+        <div class="ms-4">
+          <label for="audible_region" class="form-label small text-muted mb-1">Region</label>
+          <select
+            id="audible_region"
+            name="audible_region"
+            class="form-select form-select-sm w-auto"
+          >
+            {% for region in audible_regions %}
+            <option value="{{ region }}" {% if settings.audible_region == region %}selected{% endif %}>
+              {{ region | upper }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Open Library -->
+      <div class="border rounded p-3">
+        <div class="form-check form-switch">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            role="switch"
+            id="open_library_enabled"
+            name="open_library_enabled"
+            {% if settings.open_library_enabled %}checked{% endif %}
+          >
+          <label class="form-check-label fw-semibold" for="open_library_enabled">
+            <span class="badge text-bg-secondary me-1">Open Library</span>
+            Open Library
+            <span class="fw-normal text-muted small">(fallback)</span>
+          </label>
+        </div>
+        <p class="text-muted small ms-4 mb-0 mt-1">
+          Free book metadata from the Internet Archive. No narrator or duration data.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary">
+    <i class="bi bi-check-lg me-1"></i>Save Settings
+  </button>
+</form>
+{% endblock %}

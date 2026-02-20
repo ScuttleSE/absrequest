@@ -33,16 +33,24 @@ class BookSearchService:
     TIMEOUT = 10  # seconds
 
     def search(self, query: str) -> list[dict]:
-        """Search Audible first; fall back to Open Library if nothing is returned."""
-        results = self._search_audible(query)
-        if not results:
-            results = self._search_open_library(query)
-        return results
+        """Search enabled providers in order: Audible → Open Library."""
+        from app.models import AppSettings
+        settings = AppSettings.get()
+
+        if settings.audible_enabled:
+            results = self._search_audible(query, region=settings.audible_region)
+            if results:
+                return results
+
+        if settings.open_library_enabled:
+            return self._search_open_library(query)
+
+        return []
 
     # ── Audible ────────────────────────────────────────────────────────────────
 
-    def _search_audible(self, query: str) -> list[dict]:
-        region = os.environ.get('AUDIBLE_REGION', 'us').lower()
+    def _search_audible(self, query: str, region: str = 'us') -> list[dict]:
+        region = (region or 'us').lower()
         tld = _REGION_TLD.get(region, '.com')
 
         # Step 1: catalog search → list of ASINs
