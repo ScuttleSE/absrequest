@@ -2,8 +2,11 @@ import logging
 import threading
 from datetime import datetime, timedelta
 
-from app import db
+from app import cache, db
 from app.models import AudiobookRequest, SyncLog
+
+_ITEMS_CACHE_KEY = 'abs_all_items'
+_ITEMS_CACHE_TIMEOUT = 600
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +61,10 @@ def run_abs_sync(app, triggered_by='scheduler', triggered_by_user_id=None):
 
             client = AudiobookshelfClient()
             abs_items = client.get_all_items_all_libraries()
+
+            # Refresh the shared cache so the library browser and search pages
+            # reflect the newly fetched items immediately after sync.
+            cache.set(_ITEMS_CACHE_KEY, abs_items, timeout=_ITEMS_CACHE_TIMEOUT)
 
             if not abs_items:
                 logger.warning('ABS sync: no items returned from ABS library')
