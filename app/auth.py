@@ -84,6 +84,13 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
 
+    # Show local login form when explicitly requested (?local=1) or when no
+    # SSO provider is configured (local is the only way in).
+    show_local = (
+        request.args.get('local') == '1'
+        or not current_app.config.get('OAUTH2_CONFIGURED')
+    )
+
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data.strip().lower()).first()
@@ -93,7 +100,7 @@ def login():
             return redirect(next_page or url_for('main.dashboard'))
         flash('Invalid email or password.', 'danger')
 
-    return render_template('auth/login.html', form=form)
+    return render_template('auth/login.html', form=form, show_local=show_local)
 
 
 @auth.route('/logout')

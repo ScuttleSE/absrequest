@@ -7,6 +7,9 @@
   <div class="col-12 col-md-10 col-lg-8">
     <h2 class="mb-4 text-center">Sign In</h2>
 
+    {% if show_local %}
+
+    <!-- Two-column layout: local form + SSO -->
     <div class="row g-4">
 
       <!-- Left: local login form -->
@@ -17,7 +20,7 @@
               <i class="bi bi-person-lock me-2"></i>Local Account
             </h5>
 
-            <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+            <form method="POST" action="{{ url_for('auth.login', local=1) }}" novalidate>
               {{ form.hidden_tag() }}
 
               <div class="mb-3">
@@ -63,7 +66,7 @@
         </div>
       </div>
 
-      <!-- Right: SSO button and/or registration link -->
+      <!-- Right: SSO and/or registration -->
       <div class="col-md-6">
         <div class="card shadow-sm h-100">
           <div class="card-body d-flex flex-column">
@@ -81,28 +84,49 @@
                 Continue with {{ OAUTH2_BUTTON.name }}
               </a>
             </div>
-            <hr>
+            {% if ALLOW_REGISTRATION %}<hr>{% endif %}
             {% endif %}
 
+            {% if ALLOW_REGISTRATION %}
             <div class="mt-auto text-center">
-              {% if ALLOW_REGISTRATION %}
               <p class="mb-2 text-muted small">Don't have an account?</p>
               <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary">
                 <i class="bi bi-person-plus me-1"></i>Create Account
               </a>
-              {% else %}
-              <p class="text-muted small mb-0">
-                <i class="bi bi-info-circle me-1"></i>
-                Registration is currently disabled.
-              </p>
-              {% endif %}
             </div>
+            {% endif %}
 
           </div>
         </div>
       </div>
 
     </div>
+
+    {% else %}
+
+    <!-- SSO-only layout (local login hidden) -->
+    <div class="row justify-content-center">
+      <div class="col-12 col-sm-8 col-md-6">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            {% if OAUTH2_CONFIGURED %}
+            <div class="d-grid">
+              <a
+                href="{{ url_for('auth.login_oidc') }}"
+                class="btn btn-outline-secondary btn-lg"
+              >
+                <i class="bi {{ OAUTH2_BUTTON.icon }} me-2"></i>
+                Continue with {{ OAUTH2_BUTTON.name }}
+              </a>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% endif %}
+
   </div>
 </div>
 {% endblock %}
