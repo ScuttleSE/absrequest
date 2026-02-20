@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}Request Audiobook — ABS Request Manager{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Home</a></li>
+      <li class="breadcrumb-item"><a href="javascript:history.back()">Search results</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Request</li>
+    </ol>
+  </nav>
+  <h2>Request Audiobook</h2>
+</div>
+
+<div class="row g-4">
+
+  <!-- ── Left: book preview ─────────────────────────────────────────────────── -->
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+
+      <!-- Cover -->
+      {% if book.cover_url %}
+      <img
+        src="{{ book.cover_url }}"
+        alt="{{ book.title }}"
+        class="card-img-top"
+        style="max-height: 320px; object-fit: contain; background: #f8f9fa;"
+      >
+      {% else %}
+      <div
+        class="card-img-top d-flex align-items-center justify-content-center bg-light"
+        style="height: 200px;"
+      >
+        <i class="bi bi-book display-3 text-muted"></i>
+      </div>
+      {% endif %}
+
+      <div class="card-body">
+        <h5 class="card-title mb-2">{{ book.title }}</h5>
+
+        {% if book.author %}
+        <p class="card-text mb-1">
+          <i class="bi bi-person me-1 text-muted"></i>{{ book.author }}
+        </p>
+        {% endif %}
+
+        {% if book.narrator %}
+        <p class="card-text mb-1 text-muted small">
+          <i class="bi bi-mic me-1"></i>Narrated by {{ book.narrator }}
+        </p>
+        {% endif %}
+
+        {% if book.duration %}
+        <p class="card-text mb-1 text-muted small">
+          <i class="bi bi-clock me-1"></i>{{ book.duration }}
+        </p>
+        {% endif %}
+
+        {% if book.description %}
+        <p class="card-text small text-muted mt-2">
+          {{ book.description[:400] }}{% if book.description|length > 400 %}…{% endif %}
+        </p>
+        {% endif %}
+
+        {% if book.source %}
+        <div class="mt-2">
+          {% if book.source == 'google_books' %}
+          <span class="badge text-bg-info text-dark">Google Books</span>
+          {% elif book.source == 'open_library' %}
+          <span class="badge text-bg-secondary">Open Library</span>
+          {% else %}
+          <span class="badge text-bg-secondary">{{ book.source }}</span>
+          {% endif %}
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right: submission form ─────────────────────────────────────────────── -->
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h4 class="card-title mb-4">
+          <i class="bi bi-send me-2"></i>Submit Request
+        </h4>
+
+        <form method="POST" action="{{ url_for('main.request_new') }}">
+          <!-- CSRF -->
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <!-- Hidden book metadata -->
+          <input type="hidden" name="title"           value="{{ book.title }}">
+          <input type="hidden" name="author"          value="{{ book.author or '' }}">
+          <input type="hidden" name="narrator"        value="{{ book.narrator or '' }}">
+          <input type="hidden" name="cover_url"       value="{{ book.cover_url or '' }}">
+          <input type="hidden" name="isbn"            value="{{ book.isbn or '' }}">
+          <input type="hidden" name="asin"            value="{{ book.asin or '' }}">
+          <input type="hidden" name="google_books_id" value="{{ book.google_books_id or '' }}">
+          <input type="hidden" name="duration"        value="{{ book.duration or '' }}">
+          <input type="hidden" name="description"     value="{{ book.description or '' }}">
+          <input type="hidden" name="source"          value="{{ book.source or '' }}">
+
+          <!-- Visible: note -->
+          <div class="mb-4">
+            <label for="user_note" class="form-label fw-semibold">
+              Notes for the managers
+              <span class="fw-normal text-muted">(optional)</span>
+            </label>
+            <textarea
+              id="user_note"
+              name="user_note"
+              class="form-control"
+              rows="4"
+              placeholder="Any extra details — specific edition, alternate title, narrator preference, etc."
+            ></textarea>
+          </div>
+
+          <!-- Library check -->
+          <div class="mb-4 p-3 border rounded bg-light">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                id="check-library-btn"
+                data-title="{{ book.title }}"
+                data-author="{{ book.author or '' }}"
+              >
+                <i class="bi bi-search me-1"></i>Check Library
+              </button>
+              <span class="text-muted small">
+                Check if this audiobook is already in your Audiobookshelf library.
+              </span>
+            </div>
+            <div id="library-check-result" class="d-none mt-2"></div>
+          </div>
+
+          <!-- Submit / Cancel -->
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="bi bi-send me-1"></i>Submit Request
+            </button>
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary btn-lg">
+              Cancel
+            </a>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/library_check.js') }}"></script>
+{% endblock %}

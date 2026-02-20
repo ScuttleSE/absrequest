@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+
+{% set si = STATUS_CONFIG.get(req.status, {'label': req.status, 'badge': 'secondary', 'icon': 'bi-circle'}) %}
+
+{% block title %}{{ req.title }} — ABS Request Manager{% endblock %}
+
+{% block content %}
+
+<!-- ── Breadcrumb ────────────────────────────────────────────────────────────── -->
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">My Requests</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ req.title | truncate(40) }}</li>
+  </ol>
+</nav>
+
+<!-- ── Status alerts ─────────────────────────────────────────────────────────── -->
+{% if req.fulfilled_by_sync %}
+<div class="alert alert-primary d-flex align-items-start gap-2" role="alert">
+  <i class="bi bi-arrow-repeat fs-5 flex-shrink-0 mt-1"></i>
+  <div>
+    <strong>Automatically fulfilled!</strong> This request was found in the library during sync.
+    {% if req.abs_match_title %}
+    <br>Found as: <em>{{ req.abs_match_title }}</em>
+    {% if req.abs_match_author %}by {{ req.abs_match_author }}{% endif %}
+    {% endif %}
+  </div>
+</div>
+{% elif req.status == 'possible_match' %}
+<div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+  <i class="bi bi-question-circle fs-5 flex-shrink-0 mt-1"></i>
+  <div>
+    <strong>Possible match found.</strong> A manager will review this.
+    {% if req.abs_match_title %}
+    <br>Possible match: <em>{{ req.abs_match_title }}</em>
+    {% if req.abs_match_author %}by {{ req.abs_match_author }}{% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Main card ─────────────────────────────────────────────────────────────── -->
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="row g-4">
+
+      <!-- Cover -->
+      <div class="col-sm-3 col-md-2 text-center">
+        {% if req.cover_url %}
+        <img
+          src="{{ req.cover_url }}"
+          alt="{{ req.title }}"
+          class="img-fluid rounded shadow-sm"
+          style="max-height: 180px; object-fit: contain;"
+        >
+        {% else %}
+        <div
+          class="d-flex align-items-center justify-content-center rounded bg-secondary text-white"
+          style="height: 140px; width: 100%;"
+        >
+          <i class="bi bi-book display-4"></i>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Details -->
+      <div class="col">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+          <h3 class="mb-0">{{ req.title }}</h3>
+          <span class="badge text-bg-{{ si.badge }} fs-6">
+            <i class="bi {{ si.icon }} me-1"></i>{{ si.label }}
+          </span>
+        </div>
+
+        {% if req.author %}
+        <p class="mb-1">
+          <i class="bi bi-person me-1 text-muted"></i>
+          <strong>Author:</strong> {{ req.author }}
+        </p>
+        {% endif %}
+
+        {% if req.narrator %}
+        <p class="mb-1 text-muted">
+          <i class="bi bi-mic me-1"></i>
+          <strong>Narrator:</strong> {{ req.narrator }}
+        </p>
+        {% endif %}
+
+        {% if req.duration %}
+        <p class="mb-1 text-muted">
+          <i class="bi bi-clock me-1"></i>
+          <strong>Duration:</strong> {{ req.duration }}
+        </p>
+        {% endif %}
+
+        <!-- Identifiers -->
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          {% if req.isbn %}
+          <span class="badge text-bg-light text-dark border">ISBN {{ req.isbn }}</span>
+          {% endif %}
+          {% if req.asin %}
+          <span class="badge text-bg-light text-dark border">ASIN {{ req.asin }}</span>
+          {% endif %}
+          {% if req.source == 'google_books' %}
+          <span class="badge text-bg-info text-dark">Google Books</span>
+          {% elif req.source == 'open_library' %}
+          <span class="badge text-bg-secondary">Open Library</span>
+          {% elif req.source %}
+          <span class="badge text-bg-secondary">{{ req.source }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Description -->
+    {% if req.description %}
+    <hr>
+    <h6 class="text-muted text-uppercase small fw-semibold mb-2">Description</h6>
+    <p class="text-muted">{{ req.description }}</p>
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- ── Notes ─────────────────────────────────────────────────────────────────── -->
+{% if req.user_note or req.manager_note %}
+<div class="row g-3 mt-1">
+  {% if req.user_note %}
+  <div class="{{ 'col-md-6' if req.manager_note else 'col' }}">
+    <div class="card border-0 bg-light">
+      <div class="card-body">
+        <h6 class="card-title text-muted small text-uppercase fw-semibold mb-2">
+          <i class="bi bi-chat-left-text me-1"></i>Your Note
+        </h6>
+        <p class="mb-0">{{ req.user_note }}</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if req.manager_note %}
+  <div class="{{ 'col-md-6' if req.user_note else 'col' }}">
+    <div class="card border-0 bg-warning bg-opacity-10 border-warning">
+      <div class="card-body">
+        <h6 class="card-title text-muted small text-uppercase fw-semibold mb-2">
+          <i class="bi bi-shield-check me-1"></i>Manager Note
+        </h6>
+        <p class="mb-0">{{ req.manager_note }}</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── Timestamps ─────────────────────────────────────────────────────────────── -->
+<div class="mt-3 text-muted small d-flex flex-wrap gap-3">
+  <span>
+    <i class="bi bi-calendar-plus me-1"></i>
+    Submitted {{ req.created_at.strftime('%B %d, %Y at %H:%M') }}
+  </span>
+  {% if req.updated_at and req.updated_at != req.created_at %}
+  <span>
+    <i class="bi bi-pencil me-1"></i>
+    Updated {{ req.updated_at.strftime('%B %d, %Y at %H:%M') }}
+  </span>
+  {% endif %}
+  {% if req.last_sync_checked_at %}
+  <span>
+    <i class="bi bi-arrow-repeat me-1"></i>
+    Last checked {{ req.last_sync_checked_at.strftime('%B %d, %Y at %H:%M') }}
+  </span>
+  {% endif %}
+</div>
+
+<!-- ── Back link ─────────────────────────────────────────────────────────────── -->
+<div class="mt-4">
+  <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+  </a>
+</div>
+
+{% endblock %}

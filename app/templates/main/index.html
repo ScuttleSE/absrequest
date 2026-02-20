@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}ABS Request Manager{% endblock %}
+
+{% block content %}
+<div class="py-5 text-center">
+  <i class="bi bi-headphones display-1 text-primary mb-3 d-block"></i>
+  <h1 class="display-5 fw-bold">ABS Request Manager</h1>
+  <p class="lead text-muted mb-5">
+    Search for audiobooks and request them for your Audiobookshelf library.
+  </p>
+
+  <form action="{{ url_for('main.search') }}" method="GET" class="d-flex justify-content-center mb-4">
+    <div class="input-group" style="max-width: 560px;">
+      <input
+        type="text"
+        name="q"
+        class="form-control form-control-lg"
+        placeholder="Search by title, author, or ISBN…"
+        aria-label="Search for audiobooks"
+        autofocus
+      >
+      <button class="btn btn-primary btn-lg" type="submit">
+        <i class="bi bi-search me-1"></i>Search
+      </button>
+    </div>
+  </form>
+
+  {% if current_user.is_authenticated %}
+  <p class="text-muted small">
+    <a href="{{ url_for('main.dashboard') }}">
+      <i class="bi bi-grid me-1"></i>View your requests
+    </a>
+  </p>
+  {% else %}
+  <p class="text-muted small">
+    <a href="{{ url_for('auth.login') }}">Sign in</a> to submit requests.
+  </p>
+  {% endif %}
+
+  {% if abs_configured %}
+  <div class="mt-5 text-muted small">
+    <i class="bi bi-check-circle-fill text-success me-1"></i>
+    Connected to Audiobookshelf
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+
+{% block title %}Manager Dashboard — ABS Request Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">
+    <i class="bi bi-shield-check me-2"></i>Manager Dashboard
+  </h2>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('manager.requests_list') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-list-ul me-1"></i>All Requests
+    </a>
+    <a href="{{ url_for('manager.stats') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-bar-chart me-1"></i>Stats
+    </a>
+  </div>
+</div>
+
+<!-- ── Status summary cards ──────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-2">
+    <div class="card text-bg-secondary h-100">
+      <div class="card-body py-3">
+        <div class="text-uppercase fw-semibold opacity-75" style="font-size: 0.7rem;">Pending</div>
+        <div class="fs-3 fw-bold">{{ status_counts.get('pending', 0) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-2">
+    <div class="card text-bg-warning h-100">
+      <div class="card-body py-3">
+        <div class="text-uppercase fw-semibold opacity-75" style="font-size: 0.7rem;">In Progress</div>
+        <div class="fs-3 fw-bold">{{ status_counts.get('in_progress', 0) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-2">
+    <div class="card text-bg-success h-100">
+      <div class="card-body py-3">
+        <div class="text-uppercase fw-semibold opacity-75" style="font-size: 0.7rem;">Completed</div>
+        <div class="fs-3 fw-bold">{{ status_counts.get('completed', 0) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-2">
+    <div class="card text-bg-primary h-100">
+      <div class="card-body py-3">
+        <div class="text-uppercase fw-semibold opacity-75" style="font-size: 0.7rem;">Fulfilled</div>
+        <div class="fs-3 fw-bold">{{ status_counts.get('fulfilled', 0) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-2">
+    <div class="card text-bg-danger h-100">
+      <div class="card-body py-3">
+        <div class="text-uppercase fw-semibold opacity-75" style="font-size: 0.7rem;">Rejected</div>
+        <div class="fs-3 fw-bold">{{ status_counts.get('rejected', 0) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-2">
+    <div class="card h-100">
+      <div class="card-body py-3">
+        <div class="text-uppercase fw-semibold text-muted" style="font-size: 0.7rem;">Total Users</div>
+        <div class="fs-3 fw-bold">{{ total_users }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- ── Recent requests ─────────────────────────────────────────────────────── -->
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-clock-history me-2"></i>Recent Requests</span>
+        <a href="{{ url_for('manager.requests_list') }}" class="btn btn-sm btn-outline-secondary">View all</a>
+      </div>
+      {% if recent_requests %}
+      <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Title</th>
+              <th>User</th>
+              <th>Status</th>
+              <th>Requested</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for req in recent_requests %}
+            {% set sc = STATUS_CONFIG.get(req.status, {'label': req.status, 'badge': 'secondary', 'icon': 'bi-circle'}) %}
+            <tr>
+              <td class="text-truncate" style="max-width: 200px;">
+                <strong>{{ req.title }}</strong>
+                {% if req.author %}<br><small class="text-muted">{{ req.author }}</small>{% endif %}
+              </td>
+              <td>{{ req.user.name }}</td>
+              <td>
+                <span class="badge text-bg-{{ sc.badge }}">
+                  <i class="{{ sc.icon }} me-1"></i>{{ sc.label }}
+                </span>
+              </td>
+              <td class="text-muted small text-nowrap">{{ req.created_at.strftime('%Y-%m-%d') }}</td>
+              <td>
+                <a
+                  href="{{ url_for('manager.request_edit', request_id=req.id) }}"
+                  class="btn btn-sm btn-outline-secondary"
+                >Edit</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="card-body text-muted text-center py-4">
+        <i class="bi bi-inbox display-6 d-block mb-2"></i>
+        No requests yet.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Sync status ─────────────────────────────────────────────────────────── -->
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-arrow-repeat me-2"></i>ABS Sync
+      </div>
+      <div class="card-body">
+        {% if is_running %}
+        <div class="alert alert-info d-flex align-items-center gap-2 mb-3" role="alert">
+          <div class="spinner-border spinner-border-sm flex-shrink-0" role="status" aria-hidden="true"></div>
+          <span>Sync is currently running…</span>
+        </div>
+        {% endif %}
+
+        {% if last_sync %}
+        <dl class="mb-3">
+          <dt class="text-muted small">Last sync</dt>
+          <dd>{{ last_sync.finished_at.strftime('%Y-%m-%d %H:%M UTC') if last_sync.finished_at else '—' }}</dd>
+          <dt class="text-muted small">Result</dt>
+          <dd>
+            {% if last_sync.status == 'completed' %}
+            <span class="badge text-bg-success">Completed</span>
+            {{ last_sync.total_matches_found }} match{{ 'es' if last_sync.total_matches_found != 1 else '' }}
+            found from {{ last_sync.total_requests_checked }} checked
+            {% elif last_sync.status == 'failed' %}
+            <span class="badge text-bg-danger">Failed</span>
+            <small class="text-danger d-block mt-1">{{ last_sync.error_message or 'Unknown error' }}</small>
+            {% endif %}
+          </dd>
+        </dl>
+        {% else %}
+        <p class="text-muted small">No sync has been run yet.</p>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('manager.trigger_sync') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button
+            type="submit"
+            class="btn btn-primary w-100"
+            {% if is_running %}disabled{% endif %}
+          >
+            <i class="bi bi-arrow-repeat me-1"></i>
+            {% if is_running %}Sync Running…{% else %}Sync Now{% endif %}
+          </button>
+        </form>
+
+        <div class="mt-2 text-center">
+          <a href="{{ url_for('manager.sync_logs') }}" class="text-muted small">
+            <i class="bi bi-journal-text me-1"></i>View sync logs
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

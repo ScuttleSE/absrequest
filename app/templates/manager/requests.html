@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}All Requests — ABS Request Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="{{ url_for('manager.dashboard') }}">Manager Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Requests</li>
+      </ol>
+    </nav>
+    <h2 class="mb-0">All Requests</h2>
+  </div>
+</div>
+
+<!-- ── Status filter tabs ────────────────────────────────────────────────────── -->
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item">
+    <a
+      class="nav-link {% if not status_filter %}active{% endif %}"
+      href="{{ url_for('manager.requests_list') }}"
+    >All</a>
+  </li>
+  {% for key, cfg in STATUS_CONFIG.items() %}
+  <li class="nav-item">
+    <a
+      class="nav-link {% if status_filter == key %}active{% endif %}"
+      href="{{ url_for('manager.requests_list', status=key) }}"
+    >
+      <i class="{{ cfg.icon }} me-1"></i>{{ cfg.label }}
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+
+{% if requests %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>#</th>
+        <th>Title / Author</th>
+        <th>Requested by</th>
+        <th>Status</th>
+        <th>Date</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for req in requests %}
+      {% set sc = STATUS_CONFIG.get(req.status, {'label': req.status, 'badge': 'secondary', 'icon': 'bi-circle'}) %}
+      <tr>
+        <td class="text-muted small">{{ req.id }}</td>
+        <td>
+          <strong>{{ req.title }}</strong>
+          {% if req.author %}<br><span class="text-muted small">{{ req.author }}</span>{% endif %}
+        </td>
+        <td>{{ req.user.name }}</td>
+        <td>
+          <span class="badge text-bg-{{ sc.badge }}">
+            <i class="{{ sc.icon }} me-1"></i>{{ sc.label }}
+          </span>
+        </td>
+        <td class="text-muted small text-nowrap">{{ req.created_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          <a
+            href="{{ url_for('manager.request_edit', request_id=req.id) }}"
+            class="btn btn-sm btn-outline-secondary"
+          >
+            <i class="bi bi-pencil me-1"></i>Edit
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center text-muted py-5 border rounded">
+  <i class="bi bi-inbox display-4 d-block mb-3"></i>
+  <p class="lead mb-0">No requests found{% if status_filter %} with this status{% endif %}.</p>
+</div>
+{% endif %}
+{% endblock %}

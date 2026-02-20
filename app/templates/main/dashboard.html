@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard — ABS Request Manager{% endblock %}
+
+{% block content %}
+
+<!-- ── Header ───────────────────────────────────────────────────────────────── -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">My Requests</h2>
+  <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+    <i class="bi bi-search me-1"></i>Search Books
+  </a>
+</div>
+
+<!-- ── Summary counts ────────────────────────────────────────────────────────── -->
+{% if requests %}
+<div class="d-flex flex-wrap gap-2 mb-4">
+  {% if pending_count %}
+  <span class="badge text-bg-secondary fs-6 fw-normal px-3 py-2">
+    <i class="bi bi-clock me-1"></i>{{ pending_count }} pending
+  </span>
+  {% endif %}
+  {% if in_progress_count %}
+  <span class="badge text-bg-warning fs-6 fw-normal px-3 py-2">
+    <i class="bi bi-gear me-1"></i>{{ in_progress_count }} in progress
+  </span>
+  {% endif %}
+  {% if completed_count %}
+  <span class="badge text-bg-success fs-6 fw-normal px-3 py-2">
+    <i class="bi bi-check-circle me-1"></i>{{ completed_count }} completed
+  </span>
+  {% endif %}
+  {% if not pending_count and not in_progress_count and not completed_count %}
+  <span class="badge text-bg-secondary fs-6 fw-normal px-3 py-2">
+    {{ requests|length }} total
+  </span>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── Grouped request sections ─────────────────────────────────────────────── -->
+{% if not requests %}
+<div class="text-center text-muted py-5 border rounded">
+  <i class="bi bi-inbox display-4 d-block mb-3"></i>
+  <p class="lead mb-1">No requests yet.</p>
+  <p class="small mb-3">Search for an audiobook to get started.</p>
+  <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+    <i class="bi bi-search me-1"></i>Search Books
+  </a>
+</div>
+
+{% else %}
+{% set section_order = ['pending', 'in_progress', 'possible_match', 'completed', 'fulfilled', 'rejected'] %}
+
+{% for status_key in section_order %}
+{% if grouped.get(status_key) %}
+{% set si = STATUS_CONFIG.get(status_key, {'label': status_key, 'badge': 'secondary', 'icon': 'bi-circle'}) %}
+
+<h5 class="mb-2 mt-4">
+  <span class="badge text-bg-{{ si.badge }} me-2">
+    <i class="bi {{ si.icon }}"></i>
+  </span>
+  {{ si.label }}
+  <span class="text-muted fw-normal fs-6">({{ grouped[status_key]|length }})</span>
+</h5>
+
+<div class="list-group mb-2">
+  {% for req in grouped[status_key] %}
+  <a
+    href="{{ url_for('main.request_detail', request_id=req.id) }}"
+    class="list-group-item list-group-item-action py-3"
+  >
+    <div class="d-flex gap-3 align-items-center">
+
+      <!-- Cover thumbnail -->
+      <div class="flex-shrink-0">
+        {% if req.cover_url %}
+        <img
+          src="{{ req.cover_url }}"
+          alt="{{ req.title }}"
+          class="rounded"
+          style="width: 48px; height: 64px; object-fit: cover;"
+        >
+        {% else %}
+        <div
+          class="rounded bg-secondary d-flex align-items-center justify-content-center text-white"
+          style="width: 48px; height: 64px;"
+        >
+          <i class="bi bi-book"></i>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Details -->
+      <div class="flex-grow-1 min-width-0">
+        <div class="fw-semibold text-truncate">{{ req.title }}</div>
+        {% if req.author %}
+        <div class="text-muted small text-truncate">{{ req.author }}</div>
+        {% endif %}
+        <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
+          <span class="badge text-bg-{{ si.badge }}">
+            <i class="bi {{ si.icon }} me-1"></i>{{ si.label }}
+          </span>
+          <span class="text-muted small">
+            {{ req.created_at.strftime('%b %d, %Y') }}
+          </span>
+        </div>
+      </div>
+
+      <i class="bi bi-chevron-right text-muted flex-shrink-0"></i>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% endblock %}

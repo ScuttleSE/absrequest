@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}Sync Log #{{ log.id }} — ABS Request Manager{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('manager.dashboard') }}">Manager Dashboard</a></li>
+      <li class="breadcrumb-item"><a href="{{ url_for('manager.sync_logs') }}">Sync Logs</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Log #{{ log.id }}</li>
+    </ol>
+  </nav>
+  <h2>Sync Log #{{ log.id }}</h2>
+</div>
+
+<div class="row g-4">
+
+  <!-- ── Log summary ─────────────────────────────────────────────────────────── -->
+  <div class="col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-info-circle me-2"></i>Summary
+      </div>
+      <div class="card-body">
+        <dl class="mb-0">
+          <dt class="text-muted small">Status</dt>
+          <dd class="mb-3">
+            {% if log.status == 'completed' %}
+            <span class="badge text-bg-success fs-6">Completed</span>
+            {% elif log.status == 'failed' %}
+            <span class="badge text-bg-danger fs-6">Failed</span>
+            {% elif log.status == 'running' %}
+            <span class="badge text-bg-info fs-6">Running</span>
+            {% else %}
+            <span class="badge text-bg-secondary fs-6">{{ log.status }}</span>
+            {% endif %}
+          </dd>
+
+          <dt class="text-muted small">Started</dt>
+          <dd class="mb-3">{{ log.started_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</dd>
+
+          <dt class="text-muted small">Finished</dt>
+          <dd class="mb-3">
+            {% if log.finished_at %}
+            {{ log.finished_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+            <small class="text-muted">
+              ({{ ((log.finished_at - log.started_at).total_seconds() | int) }}s)
+            </small>
+            {% else %}
+            —
+            {% endif %}
+          </dd>
+
+          <dt class="text-muted small">Triggered by</dt>
+          <dd class="mb-3">
+            {% if log.triggered_by == 'manual' and triggered_by_user %}
+            <i class="bi bi-person me-1"></i>{{ triggered_by_user.name }} (manual)
+            {% elif log.triggered_by == 'scheduler' %}
+            <i class="bi bi-clock me-1"></i>Scheduler (automatic)
+            {% else %}
+            {{ log.triggered_by }}
+            {% endif %}
+          </dd>
+
+          <dt class="text-muted small">Requests checked</dt>
+          <dd class="mb-3">{{ log.total_requests_checked }}</dd>
+
+          <dt class="text-muted small">Matches found</dt>
+          <dd class="mb-3">
+            {% if log.total_matches_found > 0 %}
+            <strong class="text-success">{{ log.total_matches_found }}</strong>
+            {% else %}
+            {{ log.total_matches_found }}
+            {% endif %}
+          </dd>
+
+          {% if log.error_message %}
+          <dt class="text-muted small">Error</dt>
+          <dd class="mb-0">
+            <div class="alert alert-danger py-2 px-3 mb-0 small font-monospace">
+              {{ log.error_message }}
+            </div>
+          </dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Matched requests ────────────────────────────────────────────────────── -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-check2-circle me-2"></i>
+        Matched Requests
+        {% if matched_requests %}
+        <span class="badge text-bg-success ms-1">{{ matched_requests | length }}</span>
+        {% endif %}
+      </div>
+
+      {% if matched_requests %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Title</th>
+              <th>Requested by</th>
+              <th>ABS Match</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for req in matched_requests %}
+            <tr>
+              <td class="text-muted small">{{ req.id }}</td>
+              <td>
+                <strong>{{ req.title }}</strong>
+                {% if req.author %}<br><small class="text-muted">{{ req.author }}</small>{% endif %}
+              </td>
+              <td>{{ req.user.name }}</td>
+              <td class="small text-muted">
+                {% if req.abs_match_title %}
+                {{ req.abs_match_title }}
+                {% if req.abs_match_author %}
+                <br>{{ req.abs_match_author }}
+                {% endif %}
+                {% else %}
+                —
+                {% endif %}
+              </td>
+              <td>
+                <a
+                  href="{{ url_for('manager.request_edit', request_id=req.id) }}"
+                  class="btn btn-sm btn-outline-secondary"
+                >Edit</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="card-body text-muted text-center py-4">
+        <i class="bi bi-search display-6 d-block mb-2"></i>
+        No requests were matched in this sync run.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}Sync Logs — ABS Request Manager{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('manager.dashboard') }}">Manager Dashboard</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Sync Logs</li>
+    </ol>
+  </nav>
+  <h2>Sync Logs</h2>
+</div>
+
+{% if logs %}
+<div class="card shadow-sm mb-4">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Started</th>
+          <th>Finished</th>
+          <th>Status</th>
+          <th>Checked</th>
+          <th>Matched</th>
+          <th>Triggered by</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td class="text-muted small">{{ log.id }}</td>
+          <td class="text-muted small text-nowrap">
+            {{ log.started_at.strftime('%Y-%m-%d %H:%M UTC') }}
+          </td>
+          <td class="text-muted small text-nowrap">
+            {{ log.finished_at.strftime('%Y-%m-%d %H:%M UTC') if log.finished_at else '—' }}
+          </td>
+          <td>
+            {% if log.status == 'completed' %}
+            <span class="badge text-bg-success">Completed</span>
+            {% elif log.status == 'failed' %}
+            <span class="badge text-bg-danger">Failed</span>
+            {% elif log.status == 'running' %}
+            <span class="badge text-bg-info">
+              <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+              Running
+            </span>
+            {% else %}
+            <span class="badge text-bg-secondary">{{ log.status }}</span>
+            {% endif %}
+          </td>
+          <td>{{ log.total_requests_checked }}</td>
+          <td>
+            {% if log.total_matches_found > 0 %}
+            <strong class="text-success">{{ log.total_matches_found }}</strong>
+            {% else %}
+            {{ log.total_matches_found }}
+            {% endif %}
+          </td>
+          <td class="text-muted small">{{ log.triggered_by }}</td>
+          <td>
+            <a
+              href="{{ url_for('manager.sync_log_detail', log_id=log.id) }}"
+              class="btn btn-sm btn-outline-secondary"
+            >
+              <i class="bi bi-eye me-1"></i>Detail
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Pagination ────────────────────────────────────────────────────────────── -->
+{% if pagination.pages > 1 %}
+<nav aria-label="Sync log pagination">
+  <ul class="pagination justify-content-center">
+    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+      <a
+        class="page-link"
+        href="{{ url_for('manager.sync_logs', page=pagination.prev_num) }}"
+        aria-label="Previous"
+      >
+        <i class="bi bi-chevron-left"></i>
+      </a>
+    </li>
+
+    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if p %}
+      <li class="page-item {% if p == pagination.page %}active{% endif %}">
+        <a class="page-link" href="{{ url_for('manager.sync_logs', page=p) }}">{{ p }}</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+
+    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+      <a
+        class="page-link"
+        href="{{ url_for('manager.sync_logs', page=pagination.next_num) }}"
+        aria-label="Next"
+      >
+        <i class="bi bi-chevron-right"></i>
+      </a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="text-center text-muted py-5 border rounded">
+  <i class="bi bi-journal-x display-4 d-block mb-3"></i>
+  <p class="lead mb-0">No sync logs yet.</p>
+  <p class="small">Trigger a sync from the manager dashboard to create the first log.</p>
+</div>
+{% endif %}
+{% endblock %}

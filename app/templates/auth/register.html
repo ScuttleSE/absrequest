@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Register — ABS Request Manager{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-3">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title mb-4">
+          <i class="bi bi-person-plus me-2"></i>Create Account
+        </h2>
+
+        {% if not ALLOW_REGISTRATION %}
+        <div class="alert alert-warning">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          Registration is currently disabled. Please contact an administrator.
+          <br>
+          <a href="{{ url_for('auth.login') }}" class="alert-link">Return to login</a>
+        </div>
+
+        {% else %}
+        <form method="POST" action="{{ url_for('auth.register') }}" novalidate>
+          {{ form.hidden_tag() }}
+
+          <div class="mb-3">
+            {{ form.name.label(class='form-label') }}
+            {{ form.name(
+                class='form-control' + (' is-invalid' if form.name.errors else ''),
+                placeholder='Your name',
+                autocomplete='name'
+            ) }}
+            {% for error in form.name.errors %}
+            <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.email.label(class='form-label') }}
+            {{ form.email(
+                class='form-control' + (' is-invalid' if form.email.errors else ''),
+                placeholder='you@example.com',
+                autocomplete='email'
+            ) }}
+            {% for error in form.email.errors %}
+            <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.password.label(class='form-label') }}
+            {{ form.password(
+                class='form-control' + (' is-invalid' if form.password.errors else ''),
+                placeholder='At least 8 characters',
+                autocomplete='new-password'
+            ) }}
+            {% for error in form.password.errors %}
+            <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="mb-4">
+            {{ form.confirm_password.label(class='form-label') }}
+            {{ form.confirm_password(
+                class='form-control' + (' is-invalid' if form.confirm_password.errors else ''),
+                placeholder='Repeat password',
+                autocomplete='new-password'
+            ) }}
+            {% for error in form.confirm_password.errors %}
+            <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="d-grid">
+            {{ form.submit(class='btn btn-primary btn-lg') }}
+          </div>
+        </form>
+
+        <div class="mt-3 text-center text-muted small">
+          Already have an account?
+          <a href="{{ url_for('auth.login') }}">Sign in</a>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Search — ABS Request Manager{% endblock %}
+
+{% block content %}
+
+<!-- ── Search bar ────────────────────────────────────────────────────────────── -->
+<form action="{{ url_for('main.search') }}" method="GET" class="mb-4">
+  <div class="input-group">
+    <input
+      type="text"
+      name="q"
+      value="{{ query }}"
+      class="form-control form-control-lg"
+      placeholder="Search by title, author, or ISBN…"
+      aria-label="Search"
+    >
+    <button class="btn btn-primary btn-lg" type="submit">
+      <i class="bi bi-search me-1"></i>Search
+    </button>
+  </div>
+</form>
+
+<!-- ── Results header ────────────────────────────────────────────────────────── -->
+{% if results %}
+
+{% if any_certain_match %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-3" role="alert">
+  <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+  Some results may already be in your Audiobookshelf library. Check before requesting.
+</div>
+{% endif %}
+
+<p class="text-muted mb-3">
+  <strong>{{ results|length }}</strong> result{{ 's' if results|length != 1 else '' }} for
+  &ldquo;<em>{{ query }}</em>&rdquo;
+</p>
+
+<!-- ── Results grid ──────────────────────────────────────────────────────────── -->
+<div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
+  {% for result in results %}
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+
+      <!-- Cover image -->
+      <div style="height: 200px; overflow: hidden; background: #f0f0f0;">
+        {% if result.cover_url %}
+        <img
+          src="{{ result.cover_url }}"
+          alt="{{ result.title }}"
+          class="w-100 h-100"
+          style="object-fit: cover;"
+        >
+        {% else %}
+        <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary text-white">
+          <i class="bi bi-book display-4"></i>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="card-body d-flex flex-column">
+        <!-- Title & Author -->
+        <h6 class="card-title fw-bold mb-1">{{ result.title }}</h6>
+        {% if result.author %}
+        <p class="text-muted small mb-1">
+          <i class="bi bi-person me-1"></i>{{ result.author }}
+        </p>
+        {% endif %}
+        {% if result.narrator %}
+        <p class="text-muted small mb-1">
+          <i class="bi bi-mic me-1"></i>Narrated by {{ result.narrator }}
+        </p>
+        {% endif %}
+
+        <!-- Description (truncated) -->
+        {% if result.description %}
+        <p class="card-text small text-muted mt-1 mb-2" style="flex: 1;">
+          {{ result.description | truncate(120) }}
+        </p>
+        {% else %}
+        <div style="flex: 1;"></div>
+        {% endif %}
+
+        <!-- Badges -->
+        <div class="d-flex flex-wrap gap-1 mb-2">
+          {% if result.source == 'google_books' %}
+          <span class="badge text-bg-info text-dark">Google Books</span>
+          {% elif result.source == 'open_library' %}
+          <span class="badge text-bg-secondary">Open Library</span>
+          {% endif %}
+
+          {% if result.abs_match %}
+            {% if result.abs_match_certain %}
+            <span class="badge text-bg-danger">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>In Library
+            </span>
+            {% else %}
+            <span class="badge text-bg-warning text-dark">
+              <i class="bi bi-question-circle me-1"></i>Possibly in Library
+            </span>
+            {% endif %}
+          {% endif %}
+        </div>
+
+        <!-- Action button -->
+        {% if result.already_requested %}
+        <button class="btn btn-outline-secondary btn-sm w-100" disabled>
+          <i class="bi bi-check-circle me-1"></i>Already Requested
+        </button>
+        {% else %}
+        {% set req_url = url_for('main.request_new',
+            title=result.title,
+            author=result.author or '',
+            narrator=result.narrator or '',
+            cover_url=result.cover_url or '',
+            isbn=result.isbn or '',
+            asin=result.asin or '',
+            google_books_id=result.google_books_id or '',
+            duration=result.duration or '',
+            description=result.description or '',
+            source=result.source or '') %}
+        <a href="{{ req_url }}" class="btn btn-primary btn-sm w-100">
+          <i class="bi bi-plus-circle me-1"></i>Request this book
+        </a>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<!-- ── No results ─────────────────────────────────────────────────────────────── -->
+<div class="text-center text-muted py-5">
+  <i class="bi bi-search display-4 d-block mb-3"></i>
+  <p class="lead mb-1">No results found for &ldquo;<em>{{ query }}</em>&rdquo;</p>
+  <p class="small">Try a different title, author name, or ISBN.</p>
+</div>
+{% endif %}
+
+{% endblock %}
