@@ -29,7 +29,7 @@ def init_scheduler(app):
         scheduler.add_job(
             id='abs_sync',
             func=_run_scheduled_sync,
-            args=[app._get_current_object()],
+            args=[app],
             trigger='interval',
             hours=interval_hours,
             replace_existing=True,
