@@ -18,9 +18,14 @@ class Config:
     OAUTH2_PROVIDER_NAME = os.environ.get('OAUTH2_PROVIDER_NAME', 'SSO')
     OAUTH2_CLIENT_ID = os.environ.get('OAUTH2_CLIENT_ID', '')
     OAUTH2_CLIENT_SECRET = os.environ.get('OAUTH2_CLIENT_SECRET', '')
+    # Recommended: set the OIDC discovery document URL — Authlib will discover
+    # all endpoints (including jwks_uri) automatically.
+    OAUTH2_SERVER_METADATA_URL = os.environ.get('OAUTH2_SERVER_METADATA_URL', '')
+    # Manual fallback: individual endpoint URLs (used only when SERVER_METADATA_URL is absent)
     OAUTH2_AUTHORIZATION_URL = os.environ.get('OAUTH2_AUTHORIZATION_URL', '')
     OAUTH2_TOKEN_URL = os.environ.get('OAUTH2_TOKEN_URL', '')
     OAUTH2_USERINFO_URL = os.environ.get('OAUTH2_USERINFO_URL', '')
+    OAUTH2_JWKS_URI = os.environ.get('OAUTH2_JWKS_URI', '')
     OAUTH2_SCOPE = os.environ.get('OAUTH2_SCOPE', 'openid email profile')
     OAUTH2_ICON = os.environ.get('OAUTH2_ICON', 'bi-box-arrow-in-right')
 

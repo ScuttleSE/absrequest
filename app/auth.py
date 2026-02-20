@@ -124,7 +124,19 @@ def callback_oidc():
     if not current_app.config.get('OAUTH2_CONFIGURED'):
         abort(404)
 
-    token = oauth.oidc.authorize_access_token()
+    try:
+        token = oauth.oidc.authorize_access_token()
+    except RuntimeError as exc:
+        if 'jwks_uri' in str(exc):
+            flash(
+                'SSO login failed: the provider\'s JWKS endpoint could not be '
+                'discovered. Set OAUTH2_SERVER_METADATA_URL in your .env file '
+                'to the provider\'s OpenID Connect discovery URL '
+                '(e.g. https://auth.example.com/.well-known/openid-configuration).',
+                'danger',
+            )
+            return redirect(url_for('auth.login'))
+        raise
 
     # For OIDC providers the userinfo may be embedded in the id_token claims,
     # or we need to fetch it from the userinfo endpoint.
