@@ -66,8 +66,8 @@
 
         {% if book.source %}
         <div class="mt-2">
-          {% if book.source == 'google_books' %}
-          <span class="badge text-bg-info text-dark">Google Books</span>
+          {% if book.source == 'audible' %}
+          <span class="badge text-bg-warning text-dark">Audible</span>
           {% elif book.source == 'open_library' %}
           <span class="badge text-bg-secondary">Open Library</span>
           {% else %}

@@ -1,82 +1,112 @@
 import os
+import re
 
 import requests
 
 
+# Audible base URLs by marketplace code
+_AUDIBLE_MARKETPLACES = {
+    'US': 'https://api.audible.com',
+    'UK': 'https://api.audible.co.uk',
+    'AU': 'https://api.audible.com.au',
+    'CA': 'https://api.audible.ca',
+    'DE': 'https://api.audible.de',
+    'FR': 'https://api.audible.fr',
+    'IT': 'https://api.audible.it',
+    'ES': 'https://api.audible.es',
+    'JP': 'https://api.audible.co.jp',
+    'IN': 'https://api.audible.in',
+}
+
+
 class BookSearchService:
-    """Fetches audiobook metadata from Google Books (primary) and Open Library (fallback)."""
+    """Fetches audiobook metadata from Audible (primary) and Open Library (fallback)."""
 
     TIMEOUT = 8  # seconds
 
     def search(self, query: str) -> list[dict]:
-        """Search both APIs; fall back to Open Library if Google returns nothing."""
-        results = self._search_google_books(query)
+        """Search Audible first; fall back to Open Library if nothing is returned."""
+        results = self._search_audible(query)
         if not results:
             results = self._search_open_library(query)
         return results
 
-    # ── Google Books ───────────────────────────────────────────────────────────
+    # ── Audible ────────────────────────────────────────────────────────────────
 
-    def _search_google_books(self, query: str) -> list[dict]:
+    def _search_audible(self, query: str) -> list[dict]:
+        """Search the Audible catalog API (no authentication required)."""
+        marketplace = os.environ.get('AUDIBLE_MARKETPLACE', 'US').upper()
+        base_url = _AUDIBLE_MARKETPLACES.get(marketplace, _AUDIBLE_MARKETPLACES['US'])
+
         try:
-            params: dict = {
-                'q': query,
-                'maxResults': 20,
-                'printType': 'books',
-            }
-            api_key = os.environ.get('GOOGLE_BOOKS_API_KEY', '')
-            if api_key:
-                params['key'] = api_key
-
             resp = requests.get(
-                'https://www.googleapis.com/books/v1/volumes',
-                params=params,
+                f'{base_url}/1.0/catalog/products',
+                params={
+                    'keywords': query,
+                    'num_results': 20,
+                    'response_groups': 'contributors,product_desc,product_images,media',
+                    'image_sizes': '500,300',
+                },
                 timeout=self.TIMEOUT,
             )
             resp.raise_for_status()
-            data = resp.json()
-
-            results = []
-            for item in data.get('items', []):
-                info = item.get('volumeInfo', {})
-
-                # Prefer ISBN-13; fall back to ISBN-10
-                isbn: str | None = None
-                for identifier in info.get('industryIdentifiers', []):
-                    if identifier.get('type') == 'ISBN_13':
-                        isbn = identifier.get('identifier')
-                        break
-                if not isbn:
-                    for identifier in info.get('industryIdentifiers', []):
-                        if identifier.get('type') == 'ISBN_10':
-                            isbn = identifier.get('identifier')
-                            break
-
-                # Cover URL — upgrade to HTTPS and request a larger image
-                cover_url: str | None = None
-                thumbnail = info.get('imageLinks', {}).get('thumbnail', '')
-                if thumbnail:
-                    cover_url = thumbnail.replace('http://', 'https://')
-                    if '&fife=' not in cover_url:
-                        cover_url += '&fife=w400'
-
-                authors = info.get('authors', [])
-                results.append({
-                    'title': info.get('title', 'Unknown Title'),
-                    'author': ', '.join(authors) if authors else None,
-                    'narrator': None,  # Google Books API does not expose narrator info
-                    'cover_url': cover_url,
-                    'description': info.get('description'),
-                    'isbn': isbn,
-                    'asin': None,
-                    'google_books_id': item.get('id'),
-                    'duration': None,
-                    'source': 'google_books',
-                })
-            return results
-
+            products = resp.json().get('products', [])
         except Exception:
             return []
+
+        results = []
+        for p in products:
+            title = p.get('title', '').strip()
+            if not title:
+                continue
+
+            subtitle = p.get('subtitle', '').strip()
+            if subtitle:
+                title = f'{title}: {subtitle}'
+
+            authors = ', '.join(
+                a.get('name', '') for a in p.get('authors', []) if a.get('name')
+            ) or None
+
+            narrators = ', '.join(
+                n.get('name', '') for n in p.get('narrators', []) if n.get('name')
+            ) or None
+
+            # Duration from runtime_length_min (minutes)
+            duration = None
+            mins = p.get('runtime_length_min')
+            if mins:
+                try:
+                    h, m = divmod(int(mins), 60)
+                    duration = f'{h}h {m}m' if h else f'{m}m'
+                except (TypeError, ValueError):
+                    pass
+
+            # Cover — prefer 500px, fall back to 300px
+            images = p.get('product_images') or {}
+            cover_url = images.get('500') or images.get('300') or None
+
+            # Description — strip any HTML tags Audible may include
+            description = (
+                p.get('merchandising_summary') or p.get('publisher_summary') or None
+            )
+            if description:
+                description = re.sub(r'<[^>]+>', '', description).strip() or None
+
+            results.append({
+                'title': title,
+                'author': authors,
+                'narrator': narrators,
+                'cover_url': cover_url,
+                'isbn': None,
+                'asin': p.get('asin') or None,
+                'google_books_id': None,
+                'duration': duration,
+                'description': description,
+                'source': 'audible',
+            })
+
+        return results
 
     # ── Open Library ───────────────────────────────────────────────────────────
 
