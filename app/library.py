@@ -144,6 +144,8 @@ def api_library_check():
 @library.route('/api/abs/status')
 def api_abs_status():
     """Return ABS connection status (used by the navbar pill)."""
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
     status = cache.get('abs_status')
     if status is None:
         status = AudiobookshelfClient().get_status()

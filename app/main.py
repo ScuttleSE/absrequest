@@ -67,6 +67,7 @@ def _get_abs_items() -> list[dict]:
 
 
 @main.route('/')
+@login_required
 def index():
     import random
     abs_configured = bool(current_app.config.get('AUDIOBOOKSHELF_URL'))
