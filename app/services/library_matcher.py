@@ -44,7 +44,10 @@ class LibraryMatcher:
         a_req = self.normalize(request_author)
         a_abs = self.normalize(abs_author)
 
-        title_score: float = fuzz.ratio(t_req, t_abs) / 100.0
+        # token_set_ratio handles subtitle / series suffixes gracefully:
+        # "The Hard Line: A Gray Man Novel" vs "The Hard Line" → 100 %
+        # whereas plain ratio would give ~55 % for that pair.
+        title_score: float = fuzz.token_set_ratio(t_req, t_abs) / 100.0
 
         # If one side has no author info, treat it as a non-match on author
         # (avoids false positives from empty-vs-empty = 100 %)
