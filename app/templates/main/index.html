@@ -3,40 +3,60 @@
 {% block title %}ABS Request Manager{% endblock %}
 
 {% block content %}
-<div class="py-5 text-center">
-  <i class="bi bi-headphones display-1 text-primary mb-3 d-block"></i>
-  <h1 class="display-5 fw-bold">ABS Request Manager</h1>
-  <p class="lead text-muted mb-5">
-    Search for audiobooks and request them for your Audiobookshelf library.
-  </p>
+<div class="hero-section {% if not cover_urls %}bg-dark{% endif %}">
 
-  <form action="{{ url_for('main.search') }}" method="GET" class="d-flex justify-content-center mb-4">
-    <div class="input-group" style="max-width: 560px;">
-      <input
-        type="text"
-        name="q"
-        class="form-control form-control-lg"
-        placeholder="Search by title, author, or ISBN…"
-        aria-label="Search for audiobooks"
-        autofocus
-      >
-      <button class="btn btn-primary btn-lg" type="submit">
-        <i class="bi bi-search me-1"></i>Search
-      </button>
-    </div>
-  </form>
-
-  {% if current_user.is_authenticated %}
-  <p class="text-muted small">
-    <a href="{{ url_for('main.dashboard') }}">
-      <i class="bi bi-grid me-1"></i>View your requests
-    </a>
-  </p>
-  {% else %}
-  <p class="text-muted small">
-    <a href="{{ url_for('auth.login') }}">Sign in</a> to submit requests.
-  </p>
+  {% if cover_urls %}
+  <!-- Cover wallpaper -->
+  <div class="hero-covers">
+    {% for url in cover_urls %}
+    <div style="background-image: url('{{ url }}');"></div>
+    {% endfor %}
+  </div>
+  <div class="hero-overlay"></div>
   {% endif %}
+
+  <!-- Content -->
+  <div class="hero-content text-center {% if cover_urls %}text-white{% endif %}">
+    <i class="bi bi-headphones display-1 {% if cover_urls %}text-white{% else %}text-primary{% endif %} mb-3 d-block"></i>
+    <h1 class="display-5 fw-bold mb-3">ABS Request Manager</h1>
+    <p class="lead mb-5 {% if cover_urls %}text-white-50{% else %}text-muted{% endif %}">
+      Search for audiobooks and request them for your Audiobookshelf library.
+    </p>
+
+    <form action="{{ url_for('main.search') }}" method="GET" class="d-flex justify-content-center mb-4">
+      <div class="input-group" style="max-width: 560px;">
+        <input
+          type="text"
+          name="q"
+          class="form-control form-control-lg"
+          placeholder="Search by title, author, or ISBN…"
+          aria-label="Search for audiobooks"
+          autofocus
+        >
+        <button class="btn btn-primary btn-lg" type="submit">
+          <i class="bi bi-search me-1"></i>Search
+        </button>
+      </div>
+    </form>
+
+    {% if current_user.is_authenticated %}
+    <p class="small {% if cover_urls %}text-white-50{% else %}text-muted{% endif %}">
+      <a
+        href="{{ url_for('main.dashboard') }}"
+        class="{% if cover_urls %}text-white{% else %}{% endif %}"
+      >
+        <i class="bi bi-grid me-1"></i>View your requests
+      </a>
+    </p>
+    {% else %}
+    <p class="small {% if cover_urls %}text-white-50{% else %}text-muted{% endif %}">
+      <a
+        href="{{ url_for('auth.login') }}"
+        class="{% if cover_urls %}text-white{% endif %}"
+      >Sign in</a> to submit requests.
+    </p>
+    {% endif %}
+  </div>
 
 </div>
 {% endblock %}

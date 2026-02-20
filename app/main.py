@@ -68,8 +68,15 @@ def _get_abs_items() -> list[dict]:
 
 @main.route('/')
 def index():
+    import random
     abs_configured = bool(current_app.config.get('AUDIOBOOKSHELF_URL'))
-    return render_template('main/index.html', abs_configured=abs_configured)
+    cover_urls = []
+    if abs_configured:
+        items = _get_abs_items()
+        candidates = [item['cover_url'] for item in items if item.get('cover_url')]
+        if candidates:
+            cover_urls = random.sample(candidates, min(6, len(candidates)))
+    return render_template('main/index.html', abs_configured=abs_configured, cover_urls=cover_urls)
 
 
 @main.route('/search')
