@@ -86,10 +86,10 @@ class AudiobookshelfClient:
     # ── Public API ────────────────────────────────────────────────────────────
 
     def ping(self) -> bool:
-        """Return True if ABS responds to a ping (any 2xx reply is sufficient)."""
+        """Return True if ABS is reachable and the token is valid."""
         if not self._configured:
             return False
-        return self._get('/api/ping') is not None
+        return self._get('/api/libraries') is not None
 
     def get_libraries(self) -> list[dict]:
         """Return book libraries from ABS (mediaType == 'book')."""
