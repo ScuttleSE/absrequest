@@ -1,7 +1,10 @@
+import logging
 import os
 import re
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 # Audible base URLs by marketplace code
@@ -51,7 +54,8 @@ class BookSearchService:
             )
             resp.raise_for_status()
             products = resp.json().get('products', [])
-        except Exception:
+        except Exception as exc:
+            logger.warning('Audible search failed: %s', exc)
             return []
 
         results = []
