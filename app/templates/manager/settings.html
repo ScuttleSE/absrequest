@@ -64,6 +64,19 @@
           </div>
           <div class="text-muted small mt-1">All selected regions are searched in parallel.</div>
         </div>
+        <div class="ms-4 mt-3">
+          <label class="form-label small text-muted mb-1" for="audible_language">Language filter</label>
+          <input
+            type="text"
+            class="form-control form-control-sm"
+            id="audible_language"
+            name="audible_language"
+            value="{{ settings.audible_language }}"
+            placeholder="e.g. english, french, german — leave empty for all languages"
+            style="max-width: 360px;"
+          >
+          <div class="text-muted small mt-1">Leave empty to return results in all languages.</div>
+        </div>
       </div>
 
       <!-- Open Library -->

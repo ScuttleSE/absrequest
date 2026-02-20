@@ -91,6 +91,8 @@ class AppSettings(db.Model):
     audible_enabled = db.Column(db.Boolean, nullable=False, default=True)
     # Comma-separated region codes, e.g. "us,uk,de"
     audible_region = db.Column(db.String(100), nullable=False, default='us')
+    # Language filter passed to the Audible API, e.g. "english". Empty = no filter.
+    audible_language = db.Column(db.String(50), nullable=False, default='english')
     open_library_enabled = db.Column(db.Boolean, nullable=False, default=False)
 
     @property

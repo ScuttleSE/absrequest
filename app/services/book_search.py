@@ -48,6 +48,7 @@ class BookSearchService:
             results, total = self._search_audible_regions(
                 query, settings.audible_regions, page=page,
                 author_search=author_search, narrator_search=narrator_search,
+                language=settings.audible_language,
             )
             if results:
                 return results, total
@@ -60,6 +61,7 @@ class BookSearchService:
     def _search_audible_regions(
         self, query: str, regions: list[str], page: int = 1,
         author_search: bool = False, narrator_search: bool = False,
+        language: str = '',
     ) -> tuple[list[dict], int]:
         """Search multiple Audible regions in parallel and merge, deduplicating by ASIN."""
         if not regions:
@@ -69,6 +71,7 @@ class BookSearchService:
             return self._search_audible(
                 query, region=regions[0], page=page,
                 author_search=author_search, narrator_search=narrator_search,
+                language=language,
             )
 
         seen_asins: set[str] = set()
@@ -78,7 +81,7 @@ class BookSearchService:
         with ThreadPoolExecutor(max_workers=len(regions)) as executor:
             futures = {
                 executor.submit(
-                    self._search_audible, query, region, page, author_search, narrator_search
+                    self._search_audible, query, region, page, author_search, narrator_search, language
                 ): region
                 for region in regions
             }
@@ -101,6 +104,7 @@ class BookSearchService:
     def _search_audible(
         self, query: str, region: str = 'us', page: int = 1,
         author_search: bool = False, narrator_search: bool = False,
+        language: str = '',
     ) -> tuple[list[dict], int]:
         region = (region or 'us').lower()
         tld = _REGION_TLD.get(region, '.com')
@@ -112,15 +116,18 @@ class BookSearchService:
             search_param = 'narrator'
         else:
             search_param = 'keywords'
+        params: dict = {
+            search_param: query,
+            'num_results': 25,
+            'page': page,
+            'products_sort_by': 'Relevance',
+        }
+        if language:
+            params['language'] = language
         try:
             resp = requests.get(
                 f'https://api.audible{tld}/1.0/catalog/products',
-                params={
-                    search_param: query,
-                    'num_results': 25,
-                    'page': page,
-                    'products_sort_by': 'Relevance',
-                },
+                params=params,
                 timeout=self.TIMEOUT,
             )
             resp.raise_for_status()
