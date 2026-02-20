@@ -182,3 +182,24 @@
 
 </div>
 {% endblock %}
+
+{% block scripts %}
+{% if is_running %}
+<script>
+(function () {
+  var interval = setInterval(function () {
+    fetch('{{ url_for("manager.sync_status") }}')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data) return;
+        if (!data.is_running) {
+          clearInterval(interval);
+          window.location.reload();
+        }
+      })
+      .catch(function () { /* ignore network errors, keep polling */ });
+  }, 2000);
+}());
+</script>
+{% endif %}
+{% endblock %}
