@@ -33,20 +33,21 @@ class BookSearchService:
     TIMEOUT = 10  # seconds
 
     def search(
-        self, query: str, page: int = 1, author_search: bool = False
+        self, query: str, page: int = 1, author_search: bool = False, narrator_search: bool = False
     ) -> tuple[list[dict], int]:
         """Search enabled providers in order: Audible → Open Library.
 
         Returns (results, total_results).
-        When author_search is True the Audible `author` parameter is used
-        instead of `keywords`, giving author-specific results.
+        author_search uses the Audible `author` parameter.
+        narrator_search uses the Audible `narrator` parameter.
         """
         from app.models import AppSettings
         settings = AppSettings.get()
 
         if settings.audible_enabled:
             results, total = self._search_audible_regions(
-                query, settings.audible_regions, page=page, author_search=author_search
+                query, settings.audible_regions, page=page,
+                author_search=author_search, narrator_search=narrator_search,
             )
             if results:
                 return results, total
@@ -57,14 +58,18 @@ class BookSearchService:
         return [], 0
 
     def _search_audible_regions(
-        self, query: str, regions: list[str], page: int = 1, author_search: bool = False
+        self, query: str, regions: list[str], page: int = 1,
+        author_search: bool = False, narrator_search: bool = False,
     ) -> tuple[list[dict], int]:
         """Search multiple Audible regions in parallel and merge, deduplicating by ASIN."""
         if not regions:
             regions = ['us']
 
         if len(regions) == 1:
-            return self._search_audible(query, region=regions[0], page=page, author_search=author_search)
+            return self._search_audible(
+                query, region=regions[0], page=page,
+                author_search=author_search, narrator_search=narrator_search,
+            )
 
         seen_asins: set[str] = set()
         merged: list[dict] = []
@@ -72,7 +77,9 @@ class BookSearchService:
 
         with ThreadPoolExecutor(max_workers=len(regions)) as executor:
             futures = {
-                executor.submit(self._search_audible, query, region, page, author_search): region
+                executor.submit(
+                    self._search_audible, query, region, page, author_search, narrator_search
+                ): region
                 for region in regions
             }
             for future in as_completed(futures):
@@ -92,14 +99,19 @@ class BookSearchService:
     # ── Audible ────────────────────────────────────────────────────────────────
 
     def _search_audible(
-        self, query: str, region: str = 'us', page: int = 1, author_search: bool = False
+        self, query: str, region: str = 'us', page: int = 1,
+        author_search: bool = False, narrator_search: bool = False,
     ) -> tuple[list[dict], int]:
         region = (region or 'us').lower()
         tld = _REGION_TLD.get(region, '.com')
 
         # Step 1: catalog search → list of ASINs
-        # Use `author` for author-specific searches, `keywords` for general queries.
-        search_param = 'author' if author_search else 'keywords'
+        if author_search:
+            search_param = 'author'
+        elif narrator_search:
+            search_param = 'narrator'
+        else:
+            search_param = 'keywords'
         try:
             resp = requests.get(
                 f'https://api.audible{tld}/1.0/catalog/products',

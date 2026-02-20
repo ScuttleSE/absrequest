@@ -99,7 +99,10 @@ def search():
         page = 1
 
     author_search = request.args.get('author_search') == '1'
-    results, total_results = BookSearchService().search(q, page=page, author_search=author_search)
+    narrator_search = request.args.get('narrator_search') == '1'
+    results, total_results = BookSearchService().search(
+        q, page=page, author_search=author_search, narrator_search=narrator_search
+    )
     page_size = 25
     total_pages = max(1, (total_results + page_size - 1) // page_size) if total_results else None
 
@@ -156,6 +159,7 @@ def search():
         page=page,
         total_pages=total_pages,
         author_search=author_search,
+        narrator_search=narrator_search,
         any_certain_match=any_certain,
     )
 
