@@ -150,6 +150,7 @@
 </div>
 
 <!-- ── Pagination ─────────────────────────────────────────────────────────────── -->
+{% if total_pages and total_pages > 1 %}
 <nav class="mt-4 d-flex justify-content-between align-items-center">
   {% if page > 1 %}
   <a
@@ -162,9 +163,9 @@
   <span></span>
   {% endif %}
 
-  <span class="text-muted small">Page {{ page }}</span>
+  <span class="text-muted small">Page {{ page }} of {{ total_pages }}</span>
 
-  {% if results|length == 25 %}
+  {% if page < total_pages %}
   <a
     href="{{ url_for('main.search', q=query, page=page + 1) }}"
     class="btn btn-outline-secondary"
@@ -175,6 +176,7 @@
   <span></span>
   {% endif %}
 </nav>
+{% endif %}
 
 {% else %}
 <!-- ── No results ─────────────────────────────────────────────────────────────── -->

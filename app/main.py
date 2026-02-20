@@ -98,7 +98,9 @@ def search():
     except (ValueError, TypeError):
         page = 1
 
-    results = BookSearchService().search(q, page=page)
+    results, total_results = BookSearchService().search(q, page=page)
+    page_size = 25
+    total_pages = max(1, (total_results + page_size - 1) // page_size) if total_results else None
 
     # ── ABS matching ──────────────────────────────────────────────────────────
     abs_items = _get_abs_items()
@@ -151,6 +153,7 @@ def search():
         results=results,
         query=q,
         page=page,
+        total_pages=total_pages,
         any_certain_match=any_certain,
     )
 

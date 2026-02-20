@@ -32,22 +32,27 @@ class BookSearchService:
 
     TIMEOUT = 10  # seconds
 
-    def search(self, query: str, page: int = 1) -> list[dict]:
-        """Search enabled providers in order: Audible → Open Library."""
+    def search(self, query: str, page: int = 1) -> tuple[list[dict], int]:
+        """Search enabled providers in order: Audible → Open Library.
+
+        Returns (results, total_results).
+        """
         from app.models import AppSettings
         settings = AppSettings.get()
 
         if settings.audible_enabled:
-            results = self._search_audible_regions(query, settings.audible_regions, page=page)
+            results, total = self._search_audible_regions(query, settings.audible_regions, page=page)
             if results:
-                return results
+                return results, total
 
         if settings.open_library_enabled:
-            return self._search_open_library(query)
+            return self._search_open_library(query), 0
 
-        return []
+        return [], 0
 
-    def _search_audible_regions(self, query: str, regions: list[str], page: int = 1) -> list[dict]:
+    def _search_audible_regions(
+        self, query: str, regions: list[str], page: int = 1
+    ) -> tuple[list[dict], int]:
         """Search multiple Audible regions in parallel and merge, deduplicating by ASIN."""
         if not regions:
             regions = ['us']
@@ -57,6 +62,7 @@ class BookSearchService:
 
         seen_asins: set[str] = set()
         merged: list[dict] = []
+        total = 0
 
         with ThreadPoolExecutor(max_workers=len(regions)) as executor:
             futures = {
@@ -64,7 +70,9 @@ class BookSearchService:
                 for region in regions
             }
             for future in as_completed(futures):
-                for result in (future.result() or []):
+                results, region_total = future.result()
+                total = max(total, region_total)
+                for result in results:
                     asin = result.get('asin')
                     if asin:
                         if asin not in seen_asins:
@@ -73,11 +81,13 @@ class BookSearchService:
                     else:
                         merged.append(result)
 
-        return merged
+        return merged, total
 
     # ── Audible ────────────────────────────────────────────────────────────────
 
-    def _search_audible(self, query: str, region: str = 'us', page: int = 1) -> list[dict]:
+    def _search_audible(
+        self, query: str, region: str = 'us', page: int = 1
+    ) -> tuple[list[dict], int]:
         region = (region or 'us').lower()
         tld = _REGION_TLD.get(region, '.com')
 
@@ -96,14 +106,16 @@ class BookSearchService:
                 timeout=self.TIMEOUT,
             )
             resp.raise_for_status()
-            products = resp.json().get('products', [])
+            data = resp.json()
+            products = data.get('products', [])
+            total_results = data.get('total_results', 0)
         except Exception as exc:
             logger.warning('Audible catalog search failed: %s', exc)
-            return []
+            return [], 0
 
         asins = [p['asin'] for p in products if p.get('asin')]
         if not asins:
-            return []
+            return [], total_results
 
         # Step 2: fetch full metadata from audnex.us for each ASIN in parallel
         asin_order = {asin: i for i, asin in enumerate(asins)}
@@ -121,7 +133,7 @@ class BookSearchService:
 
         # Restore original relevance order from the catalog search
         raw_results.sort(key=lambda r: asin_order.get(r.get('asin', ''), 999))
-        return raw_results
+        return raw_results, total_results
 
     def _fetch_audnex(self, asin: str, region: str) -> dict | None:
         """Fetch a single book's metadata from audnex.us."""
