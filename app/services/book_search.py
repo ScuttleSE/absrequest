@@ -1,31 +1,36 @@
 import logging
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 
 logger = logging.getLogger(__name__)
 
-
-# Audible base URLs by marketplace code
-_AUDIBLE_MARKETPLACES = {
-    'US': 'https://api.audible.com',
-    'UK': 'https://api.audible.co.uk',
-    'AU': 'https://api.audible.com.au',
-    'CA': 'https://api.audible.ca',
-    'DE': 'https://api.audible.de',
-    'FR': 'https://api.audible.fr',
-    'IT': 'https://api.audible.it',
-    'ES': 'https://api.audible.es',
-    'JP': 'https://api.audible.co.jp',
-    'IN': 'https://api.audible.in',
+# Maps region code → Audible TLD (mirrors ABS's Audible.js regionMap)
+_REGION_TLD = {
+    'us': '.com',
+    'ca': '.ca',
+    'uk': '.co.uk',
+    'au': '.com.au',
+    'fr': '.fr',
+    'de': '.de',
+    'jp': '.co.jp',
+    'it': '.it',
+    'in': '.in',
+    'es': '.es',
 }
 
 
 class BookSearchService:
-    """Fetches audiobook metadata from Audible (primary) and Open Library (fallback)."""
+    """Fetches audiobook metadata from Audible (primary) and Open Library (fallback).
 
-    TIMEOUT = 8  # seconds
+    Audible search mirrors the approach used by Audiobookshelf:
+      1. Query api.audible.<tld> to get a ranked list of ASINs.
+      2. Fetch full metadata for each ASIN from api.audnex.us (community API).
+    """
+
+    TIMEOUT = 10  # seconds
 
     def search(self, query: str) -> list[dict]:
         """Search Audible first; fall back to Open Library if nothing is returned."""
@@ -37,80 +42,106 @@ class BookSearchService:
     # ── Audible ────────────────────────────────────────────────────────────────
 
     def _search_audible(self, query: str) -> list[dict]:
-        """Search the Audible catalog API (no authentication required)."""
-        marketplace = os.environ.get('AUDIBLE_MARKETPLACE', 'US').upper()
-        base_url = _AUDIBLE_MARKETPLACES.get(marketplace, _AUDIBLE_MARKETPLACES['US'])
+        region = os.environ.get('AUDIBLE_REGION', 'us').lower()
+        tld = _REGION_TLD.get(region, '.com')
 
+        # Step 1: catalog search → list of ASINs
         try:
             resp = requests.get(
-                f'{base_url}/1.0/catalog/products',
+                f'https://api.audible{tld}/1.0/catalog/products',
                 params={
-                    'keywords': query,
-                    'num_results': 20,
-                    'response_groups': 'contributors,product_desc,product_images,media',
-                    'image_sizes': '500,300',
+                    'title': query,
+                    'num_results': 10,
+                    'products_sort_by': 'Relevance',
                 },
                 timeout=self.TIMEOUT,
             )
             resp.raise_for_status()
             products = resp.json().get('products', [])
         except Exception as exc:
-            logger.warning('Audible search failed: %s', exc)
+            logger.warning('Audible catalog search failed: %s', exc)
             return []
 
-        results = []
-        for p in products:
-            title = p.get('title', '').strip()
-            if not title:
-                continue
+        asins = [p['asin'] for p in products if p.get('asin')]
+        if not asins:
+            return []
 
-            subtitle = p.get('subtitle', '').strip()
-            if subtitle:
-                title = f'{title}: {subtitle}'
+        # Step 2: fetch full metadata from audnex.us for each ASIN in parallel
+        asin_order = {asin: i for i, asin in enumerate(asins)}
+        raw_results: list[dict] = []
 
-            authors = ', '.join(
-                a.get('name', '') for a in p.get('authors', []) if a.get('name')
-            ) or None
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {
+                executor.submit(self._fetch_audnex, asin, region): asin
+                for asin in asins
+            }
+            for future in as_completed(futures):
+                data = future.result()
+                if data:
+                    raw_results.append(self._parse_audnex(data))
 
-            narrators = ', '.join(
-                n.get('name', '') for n in p.get('narrators', []) if n.get('name')
-            ) or None
+        # Restore original relevance order from the catalog search
+        raw_results.sort(key=lambda r: asin_order.get(r.get('asin', ''), 999))
+        return raw_results
 
-            # Duration from runtime_length_min (minutes)
-            duration = None
-            mins = p.get('runtime_length_min')
-            if mins:
-                try:
-                    h, m = divmod(int(mins), 60)
-                    duration = f'{h}h {m}m' if h else f'{m}m'
-                except (TypeError, ValueError):
-                    pass
-
-            # Cover — prefer 500px, fall back to 300px
-            images = p.get('product_images') or {}
-            cover_url = images.get('500') or images.get('300') or None
-
-            # Description — strip any HTML tags Audible may include
-            description = (
-                p.get('merchandising_summary') or p.get('publisher_summary') or None
+    def _fetch_audnex(self, asin: str, region: str) -> dict | None:
+        """Fetch a single book's metadata from audnex.us."""
+        try:
+            params = {}
+            if region and region != 'us':
+                params['region'] = region
+            resp = requests.get(
+                f'https://api.audnex.us/books/{asin}',
+                params=params,
+                timeout=self.TIMEOUT,
             )
-            if description:
-                description = re.sub(r'<[^>]+>', '', description).strip() or None
+            resp.raise_for_status()
+            data = resp.json()
+            return data if data.get('asin') else None
+        except Exception as exc:
+            logger.debug('audnex fetch failed for %s: %s', asin, exc)
+            return None
 
-            results.append({
-                'title': title,
-                'author': authors,
-                'narrator': narrators,
-                'cover_url': cover_url,
-                'isbn': None,
-                'asin': p.get('asin') or None,
-                'google_books_id': None,
-                'duration': duration,
-                'description': description,
-                'source': 'audible',
-            })
+    def _parse_audnex(self, p: dict) -> dict:
+        """Map an audnex.us response dict to our internal result format."""
+        title = (p.get('title') or '').strip()
+        subtitle = (p.get('subtitle') or '').strip()
+        if subtitle:
+            title = f'{title}: {subtitle}'
 
-        return results
+        authors = ', '.join(
+            a.get('name', '') for a in (p.get('authors') or []) if a.get('name')
+        ) or None
+
+        narrators = ', '.join(
+            n.get('name', '') for n in (p.get('narrators') or []) if n.get('name')
+        ) or None
+
+        duration = None
+        mins = p.get('runtimeLengthMin')
+        if mins:
+            try:
+                h, m = divmod(int(mins), 60)
+                duration = f'{h}h {m}m' if h else f'{m}m'
+            except (TypeError, ValueError):
+                pass
+
+        description = p.get('summary') or None
+        if description:
+            description = re.sub(r'<[^>]+>', '', description).strip() or None
+
+        return {
+            'title': title,
+            'author': authors,
+            'narrator': narrators,
+            'cover_url': p.get('image') or None,
+            'isbn': p.get('isbn') or None,
+            'asin': p.get('asin') or None,
+            'google_books_id': None,
+            'duration': duration,
+            'description': description,
+            'source': 'audible',
+        }
 
     # ── Open Library ───────────────────────────────────────────────────────────
 
@@ -130,7 +161,6 @@ class BookSearchService:
 
             results = []
             for doc in data.get('docs', []):
-                # Cover image
                 cover_i = doc.get('cover_i')
                 cover_url = (
                     f'https://covers.openlibrary.org/b/id/{cover_i}-M.jpg'
@@ -138,7 +168,6 @@ class BookSearchService:
                     else None
                 )
 
-                # Prefer ISBN-13 (13 digits); fall back to first available
                 isbn: str | None = None
                 isbn_list: list[str] = doc.get('isbn', [])
                 for candidate in isbn_list:
@@ -148,7 +177,6 @@ class BookSearchService:
                 if not isbn and isbn_list:
                     isbn = isbn_list[0]
 
-                # first_sentence can be a string, a dict, or a list
                 description: str | None = None
                 first_sentence = doc.get('first_sentence')
                 if isinstance(first_sentence, str):
