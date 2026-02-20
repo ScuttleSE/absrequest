@@ -38,7 +38,7 @@ class BookSearchService:
         settings = AppSettings.get()
 
         if settings.audible_enabled:
-            results = self._search_audible(query, region=settings.audible_region)
+            results = self._search_audible_regions(query, settings.audible_regions)
             if results:
                 return results
 
@@ -46,6 +46,34 @@ class BookSearchService:
             return self._search_open_library(query)
 
         return []
+
+    def _search_audible_regions(self, query: str, regions: list[str]) -> list[dict]:
+        """Search multiple Audible regions in parallel and merge, deduplicating by ASIN."""
+        if not regions:
+            regions = ['us']
+
+        if len(regions) == 1:
+            return self._search_audible(query, region=regions[0])
+
+        seen_asins: set[str] = set()
+        merged: list[dict] = []
+
+        with ThreadPoolExecutor(max_workers=len(regions)) as executor:
+            futures = {
+                executor.submit(self._search_audible, query, region): region
+                for region in regions
+            }
+            for future in as_completed(futures):
+                for result in (future.result() or []):
+                    asin = result.get('asin')
+                    if asin:
+                        if asin not in seen_asins:
+                            seen_asins.add(asin)
+                            merged.append(result)
+                    else:
+                        merged.append(result)
+
+        return merged
 
     # ── Audible ────────────────────────────────────────────────────────────────
 

@@ -292,8 +292,8 @@ def settings():
 
     if request.method == 'POST':
         s.audible_enabled = 'audible_enabled' in request.form
-        region = request.form.get('audible_region', 'us').lower()
-        s.audible_region = region if region in _AUDIBLE_REGIONS else 'us'
+        selected = [r for r in request.form.getlist('audible_regions') if r in _AUDIBLE_REGIONS]
+        s.audible_region = ','.join(selected) if selected else 'us'
         s.open_library_enabled = 'open_library_enabled' in request.form
         db.session.commit()
         flash('Settings saved.', 'success')

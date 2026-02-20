@@ -89,8 +89,14 @@ class AppSettings(db.Model):
 
     # Search providers
     audible_enabled = db.Column(db.Boolean, nullable=False, default=True)
-    audible_region = db.Column(db.String(10), nullable=False, default='us')
+    # Comma-separated region codes, e.g. "us,uk,de"
+    audible_region = db.Column(db.String(100), nullable=False, default='us')
     open_library_enabled = db.Column(db.Boolean, nullable=False, default=False)
+
+    @property
+    def audible_regions(self) -> list[str]:
+        """Return the selected Audible regions as a list."""
+        return [r.strip() for r in (self.audible_region or 'us').split(',') if r.strip()]
 
     @classmethod
     def get(cls) -> 'AppSettings':

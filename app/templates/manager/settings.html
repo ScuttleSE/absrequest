@@ -44,18 +44,25 @@
           </label>
         </div>
         <div class="ms-4">
-          <label for="audible_region" class="form-label small text-muted mb-1">Region</label>
-          <select
-            id="audible_region"
-            name="audible_region"
-            class="form-select form-select-sm w-auto"
-          >
+          <label class="form-label small text-muted mb-1">Regions</label>
+          <div class="d-flex flex-wrap gap-2">
             {% for region in audible_regions %}
-            <option value="{{ region }}" {% if settings.audible_region == region %}selected{% endif %}>
-              {{ region | upper }}
-            </option>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                name="audible_regions"
+                value="{{ region }}"
+                id="region_{{ region }}"
+                {% if region in settings.audible_regions %}checked{% endif %}
+              >
+              <label class="form-check-label" for="region_{{ region }}">
+                {{ region | upper }}
+              </label>
+            </div>
             {% endfor %}
-          </select>
+          </div>
+          <div class="text-muted small mt-1">All selected regions are searched in parallel.</div>
         </div>
       </div>
 
