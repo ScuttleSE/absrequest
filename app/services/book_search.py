@@ -82,11 +82,13 @@ class BookSearchService:
         tld = _REGION_TLD.get(region, '.com')
 
         # Step 1: catalog search → list of ASINs
+        # Use `keywords` (general search) rather than `title` so that author
+        # names, series names, and mixed queries all return relevant results.
         try:
             resp = requests.get(
                 f'https://api.audible{tld}/1.0/catalog/products',
                 params={
-                    'title': query,
+                    'keywords': query,
                     'num_results': 10,
                     'products_sort_by': 'Relevance',
                 },
