@@ -93,7 +93,12 @@ def search():
     if not q:
         return redirect(url_for('main.index'))
 
-    results = BookSearchService().search(q)
+    try:
+        page = max(1, int(request.args.get('page', 1) or 1))
+    except (ValueError, TypeError):
+        page = 1
+
+    results = BookSearchService().search(q, page=page)
 
     # ── ABS matching ──────────────────────────────────────────────────────────
     abs_items = _get_abs_items()
@@ -145,6 +150,7 @@ def search():
         'main/search.html',
         results=results,
         query=q,
+        page=page,
         any_certain_match=any_certain,
     )
 

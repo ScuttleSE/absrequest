@@ -32,13 +32,13 @@ class BookSearchService:
 
     TIMEOUT = 10  # seconds
 
-    def search(self, query: str) -> list[dict]:
+    def search(self, query: str, page: int = 1) -> list[dict]:
         """Search enabled providers in order: Audible → Open Library."""
         from app.models import AppSettings
         settings = AppSettings.get()
 
         if settings.audible_enabled:
-            results = self._search_audible_regions(query, settings.audible_regions)
+            results = self._search_audible_regions(query, settings.audible_regions, page=page)
             if results:
                 return results
 
@@ -47,20 +47,20 @@ class BookSearchService:
 
         return []
 
-    def _search_audible_regions(self, query: str, regions: list[str]) -> list[dict]:
+    def _search_audible_regions(self, query: str, regions: list[str], page: int = 1) -> list[dict]:
         """Search multiple Audible regions in parallel and merge, deduplicating by ASIN."""
         if not regions:
             regions = ['us']
 
         if len(regions) == 1:
-            return self._search_audible(query, region=regions[0])
+            return self._search_audible(query, region=regions[0], page=page)
 
         seen_asins: set[str] = set()
         merged: list[dict] = []
 
         with ThreadPoolExecutor(max_workers=len(regions)) as executor:
             futures = {
-                executor.submit(self._search_audible, query, region): region
+                executor.submit(self._search_audible, query, region, page): region
                 for region in regions
             }
             for future in as_completed(futures):
@@ -77,7 +77,7 @@ class BookSearchService:
 
     # ── Audible ────────────────────────────────────────────────────────────────
 
-    def _search_audible(self, query: str, region: str = 'us') -> list[dict]:
+    def _search_audible(self, query: str, region: str = 'us', page: int = 1) -> list[dict]:
         region = (region or 'us').lower()
         tld = _REGION_TLD.get(region, '.com')
 
@@ -90,6 +90,7 @@ class BookSearchService:
                 params={
                     'keywords': query,
                     'num_results': 25,
+                    'page': page,
                     'products_sort_by': 'Relevance',
                 },
                 timeout=self.TIMEOUT,

@@ -149,6 +149,33 @@
   {% endfor %}
 </div>
 
+<!-- ── Pagination ─────────────────────────────────────────────────────────────── -->
+<nav class="mt-4 d-flex justify-content-between align-items-center">
+  {% if page > 1 %}
+  <a
+    href="{{ url_for('main.search', q=query, page=page - 1) }}"
+    class="btn btn-outline-secondary"
+  >
+    <i class="bi bi-chevron-left me-1"></i>Previous
+  </a>
+  {% else %}
+  <span></span>
+  {% endif %}
+
+  <span class="text-muted small">Page {{ page }}</span>
+
+  {% if results|length == 25 %}
+  <a
+    href="{{ url_for('main.search', q=query, page=page + 1) }}"
+    class="btn btn-outline-secondary"
+  >
+    Next<i class="bi bi-chevron-right ms-1"></i>
+  </a>
+  {% else %}
+  <span></span>
+  {% endif %}
+</nav>
+
 {% else %}
 <!-- ── No results ─────────────────────────────────────────────────────────────── -->
 <div class="text-center text-muted py-5">
