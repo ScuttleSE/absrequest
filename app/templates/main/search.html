@@ -90,12 +90,31 @@
           {% endif %}
 
           {% if result.abs_match %}
+          {% set match_body %}{{ result.abs_match_title }}{% if result.abs_match_author %} &mdash; {{ result.abs_match_author }}{% endif %}{% endset %}
             {% if result.abs_match_certain %}
-            <span class="badge text-bg-danger">
+            <span
+              class="badge text-bg-danger"
+              role="button"
+              tabindex="0"
+              data-bs-toggle="popover"
+              data-bs-trigger="click"
+              data-bs-placement="top"
+              data-bs-title="Found in ABS library"
+              data-bs-content="{{ match_body }}"
+            >
               <i class="bi bi-exclamation-triangle-fill me-1"></i>In Library
             </span>
             {% else %}
-            <span class="badge text-bg-warning text-dark">
+            <span
+              class="badge text-bg-warning text-dark"
+              role="button"
+              tabindex="0"
+              data-bs-toggle="popover"
+              data-bs-trigger="click"
+              data-bs-placement="top"
+              data-bs-title="Possible match in ABS library"
+              data-bs-content="{{ match_body }}"
+            >
               <i class="bi bi-question-circle me-1"></i>Possibly in Library
             </span>
             {% endif %}
@@ -139,4 +158,20 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
+  new bootstrap.Popover(el, { html: false });
+  el.addEventListener('shown.bs.popover', function () {
+    document.addEventListener('click', function dismiss(e) {
+      if (!el.contains(e.target)) {
+        bootstrap.Popover.getInstance(el).hide();
+        document.removeEventListener('click', dismiss);
+      }
+    });
+  });
+});
+</script>
 {% endblock %}

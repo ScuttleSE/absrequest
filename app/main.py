@@ -130,9 +130,14 @@ def search():
             )
             result['abs_match'] = check['found']
             result['abs_match_certain'] = check['is_certain']
+            match = check.get('match') or {}
+            result['abs_match_title'] = match.get('title', '')
+            result['abs_match_author'] = match.get('author', '')
         else:
             result['abs_match'] = False
             result['abs_match_certain'] = False
+            result['abs_match_title'] = ''
+            result['abs_match_author'] = ''
 
     any_certain = any(r.get('abs_match_certain') for r in results)
 
