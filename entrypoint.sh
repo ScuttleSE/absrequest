@@ -6,7 +6,7 @@ flask db upgrade
 
 echo "Starting Gunicorn..."
 exec gunicorn \
-    --bind 0.0.0.0:8000 \
+    --bind 0.0.0.0:5001 \
     --workers 1 \
     --threads 4 \
     --timeout 120 \

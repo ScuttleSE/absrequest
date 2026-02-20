@@ -29,7 +29,7 @@ cp .env.example .env
 docker compose --profile postgres up
 ```
 
-The app is available at <http://localhost:8000>.
+The app is available at <http://localhost:5001>.
 
 **The first registered user automatically becomes a manager.**
 
@@ -78,7 +78,7 @@ All settings are read from environment variables (loaded from `.env` via
    docker compose up
    ```
 
-3. Open <http://localhost:8000> and register the first account — it will
+3. Open <http://localhost:5001> and register the first account — it will
    automatically be assigned the **manager** role.
 
 4. Subsequent users who register get the **user** role.  Managers can promote

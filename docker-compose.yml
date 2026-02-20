@@ -3,7 +3,7 @@ services:
     build: .
     env_file: .env
     ports:
-      - "8000:8000"
+      - "5001:5001"
     volumes:
       - ./data:/app/data
     restart: unless-stopped
@@ -15,7 +15,7 @@ services:
         condition: service_healthy
         required: false
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:5001/"]
       interval: 30s
       timeout: 10s
       retries: 3
