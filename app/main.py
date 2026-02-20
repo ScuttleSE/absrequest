@@ -39,13 +39,19 @@ STATUS_CONFIG: dict[str, dict] = {
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _build_or_filter(isbn: str | None, google_books_id: str | None) -> list:
-    """Return SQLAlchemy OR conditions for a book identified by isbn and/or google_books_id."""
+def _build_or_filter(
+    isbn: str | None,
+    google_books_id: str | None,
+    asin: str | None = None,
+) -> list:
+    """Return SQLAlchemy OR conditions for a book identified by any known ID."""
     conditions = []
     if isbn:
         conditions.append(AudiobookRequest.isbn == isbn)
     if google_books_id:
         conditions.append(AudiobookRequest.google_books_id == google_books_id)
+    if asin:
+        conditions.append(AudiobookRequest.asin == asin)
     return conditions
 
 
@@ -101,10 +107,11 @@ def search():
     for result in results:
         isbn = result.get('isbn')
         google_books_id = result.get('google_books_id')
+        asin = result.get('asin')
 
         # already_requested check
         already_requested = False
-        conditions = _build_or_filter(isbn, google_books_id)
+        conditions = _build_or_filter(isbn, google_books_id, asin)
         if conditions:
             existing = AudiobookRequest.query.filter(
                 AudiobookRequest.user_id == current_user.id,
@@ -173,9 +180,10 @@ def request_new():
 
     isbn = request.args.get('isbn', '').strip() or None
     google_books_id = request.args.get('google_books_id', '').strip() or None
+    asin = request.args.get('asin', '').strip() or None
 
     # Block duplicate open requests
-    conditions = _build_or_filter(isbn, google_books_id)
+    conditions = _build_or_filter(isbn, google_books_id, asin)
     if conditions:
         existing = AudiobookRequest.query.filter(
             AudiobookRequest.user_id == current_user.id,
