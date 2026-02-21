@@ -3,7 +3,7 @@
 {% block title %}Search — ABS Request Manager{% endblock %}
 
 {# ── Macro: render a results grid + pagination for one provider ──────────────── #}
-{% macro result_cards(pdata, query, page, author_search, narrator_search, tab) %}
+{% macro result_cards(pdata, query, page, author_search, narrator_search, tab, provider_filter) %}
 
 <p class="text-muted mb-3">
   <strong>{{ pdata.total if pdata.total else pdata.results|length }}</strong>
@@ -37,12 +37,12 @@
         <h6 class="card-title fw-bold mb-1">{{ result.title }}</h6>
         {% if result.author %}
         <p class="text-muted small mb-1">
-          <i class="bi bi-person me-1"></i>{% for name in result.author.split(',') %}{% set n = name.strip() %}{% if not loop.first %}, {% endif %}<a href="{{ url_for('main.search', q=n, author_search=1) }}" class="text-muted">{{ n }}</a>{% endfor %}
+          <i class="bi bi-person me-1"></i>{% for name in result.author.split(',') %}{% set n = name.strip() %}{% if not loop.first %}, {% endif %}{% if result.source == 'audible' %}<a href="{{ url_for('main.search', q=n, author_search=1) }}" class="text-muted">{{ n }}</a>{% else %}<a href="{{ url_for('main.search', q=n, provider=result.source) }}" class="text-muted">{{ n }}</a>{% endif %}{% endfor %}
         </p>
         {% endif %}
         {% if result.narrator %}
         <p class="text-muted small mb-1">
-          <i class="bi bi-mic me-1"></i>Narrated by {% for name in result.narrator.split(',') %}{% set n = name.strip() %}{% if not loop.first %}, {% endif %}<a href="{{ url_for('main.search', q=n, narrator_search=1) }}" class="text-muted">{{ n }}</a>{% endfor %}
+          <i class="bi bi-mic me-1"></i>Narrated by {% for name in result.narrator.split(',') %}{% set n = name.strip() %}{% if not loop.first %}, {% endif %}{% if result.source == 'audible' %}<a href="{{ url_for('main.search', q=n, narrator_search=1) }}" class="text-muted">{{ n }}</a>{% else %}<a href="{{ url_for('main.search', q=n, provider=result.source) }}" class="text-muted">{{ n }}</a>{% endif %}{% endfor %}
         </p>
         {% endif %}
 
@@ -130,7 +130,7 @@
 <nav class="mt-4 d-flex justify-content-between align-items-center">
   {% if page > 1 %}
   <a
-    href="{{ url_for('main.search', q=query, page=page-1, tab=tab if tab else None, author_search=1 if author_search else None, narrator_search=1 if narrator_search else None) }}"
+    href="{{ url_for('main.search', q=query, page=page-1, tab=tab if tab else None, provider=provider_filter if provider_filter else None, author_search=1 if author_search else None, narrator_search=1 if narrator_search else None) }}"
     class="btn btn-outline-secondary"
   >
     <i class="bi bi-chevron-left me-1"></i>Previous
@@ -143,7 +143,7 @@
 
   {% if page < pdata.total_pages %}
   <a
-    href="{{ url_for('main.search', q=query, page=page+1, tab=tab if tab else None, author_search=1 if author_search else None, narrator_search=1 if narrator_search else None) }}"
+    href="{{ url_for('main.search', q=query, page=page+1, tab=tab if tab else None, provider=provider_filter if provider_filter else None, author_search=1 if author_search else None, narrator_search=1 if narrator_search else None) }}"
     class="btn btn-outline-secondary"
   >
     Next<i class="bi bi-chevron-right ms-1"></i>
@@ -183,16 +183,24 @@
 <div class="alert alert-secondary d-flex align-items-center gap-2 mb-3" role="alert">
   <i class="bi bi-person-fill flex-shrink-0"></i>
   <span>
-    Showing books by author <strong>{{ query }}</strong>.
-    <a href="{{ url_for('main.search', q=query) }}" class="alert-link ms-1">Search all results instead</a>
+    Showing Audible books by author <strong>{{ query }}</strong>.
+    <a href="{{ url_for('main.search', q=query) }}" class="alert-link ms-1">Search all providers instead</a>
   </span>
 </div>
 {% elif narrator_search %}
 <div class="alert alert-secondary d-flex align-items-center gap-2 mb-3" role="alert">
   <i class="bi bi-mic-fill flex-shrink-0"></i>
   <span>
-    Showing books narrated by <strong>{{ query }}</strong>.
-    <a href="{{ url_for('main.search', q=query) }}" class="alert-link ms-1">Search all results instead</a>
+    Showing Audible books narrated by <strong>{{ query }}</strong>.
+    <a href="{{ url_for('main.search', q=query) }}" class="alert-link ms-1">Search all providers instead</a>
+  </span>
+</div>
+{% elif provider_filter %}
+<div class="alert alert-secondary d-flex align-items-center gap-2 mb-3" role="alert">
+  <i class="bi bi-funnel-fill flex-shrink-0"></i>
+  <span>
+    Showing <strong>{{ provider_filter | replace('_', ' ') | title }}</strong> results for <strong>{{ query }}</strong>.
+    <a href="{{ url_for('main.search', q=query) }}" class="alert-link ms-1">Search all providers instead</a>
   </span>
 </div>
 {% endif %}
@@ -244,7 +252,7 @@
     role="tabpanel"
     aria-labelledby="tab-{{ provider }}-btn"
   >
-    {{ result_cards(pdata, query, page, author_search, narrator_search, provider) }}
+    {{ result_cards(pdata, query, page, author_search, narrator_search, provider, provider_filter) }}
   </div>
   {% endfor %}
 </div>
@@ -253,7 +261,7 @@
 
 <!-- ── Single provider — no tab chrome ───────────────────────────────────────── -->
 {% for provider, pdata in provider_data.items() %}{% if loop.first %}
-{{ result_cards(pdata, query, page, author_search, narrator_search, '') }}
+{{ result_cards(pdata, query, page, author_search, narrator_search, '', provider_filter) }}
 {% endif %}{% endfor %}
 
 {% endif %}

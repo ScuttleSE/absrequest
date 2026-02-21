@@ -138,6 +138,7 @@ def search():
 
     author_search = request.args.get('author_search') == '1'
     narrator_search = request.args.get('narrator_search') == '1'
+    provider_filter = request.args.get('provider', '').strip()
 
     # ── ABS matching setup ────────────────────────────────────────────────────
     abs_items = _get_abs_items()
@@ -150,7 +151,8 @@ def search():
     # ── Search all providers in parallel ─────────────────────────────────────
     page_size = 25
     raw = BookSearchService().search_all_providers(
-        q, page=page, author_search=author_search, narrator_search=narrator_search
+        q, page=page, author_search=author_search, narrator_search=narrator_search,
+        provider=provider_filter,
     )
 
     # Annotate and compute per-provider metadata
@@ -187,6 +189,7 @@ def search():
         page=page,
         author_search=author_search,
         narrator_search=narrator_search,
+        provider_filter=provider_filter,
         any_certain_match=any_certain,
     )
 

@@ -33,13 +33,15 @@ class BookSearchService:
     TIMEOUT = 10  # seconds
 
     def search_all_providers(
-        self, query: str, page: int = 1, author_search: bool = False, narrator_search: bool = False
+        self, query: str, page: int = 1, author_search: bool = False,
+        narrator_search: bool = False, provider: str = '',
     ) -> dict[str, tuple[list[dict], int]]:
         """Search all enabled providers in parallel.
 
         Returns a dict mapping provider name → (results, total_results).
-        For author/narrator searches only Audible is queried (those params are
-        Audible-specific), so the dict will contain at most one key.
+        If `provider` is given, only that provider is queried.
+        author_search/narrator_search are Audible-specific; other providers
+        receive the query as a plain keyword search.
         """
         from app.models import AppSettings
         settings = AppSettings.get()
@@ -56,17 +58,27 @@ class BookSearchService:
                 )
             tasks['audible'] = _audible
 
-        # Storytel and Open Library don't understand author/narrator params
-        if not author_search and not narrator_search:
-            if settings.storytel_enabled:
-                def _storytel():
-                    return self._search_storytel(query, locale=settings.storytel_locale), 0
-                tasks['storytel'] = _storytel
+        # Storytel and Open Library receive a plain keyword search
+        if settings.storytel_enabled:
+            def _storytel():
+                return self._search_storytel(query, locale=settings.storytel_locale), 0
+            tasks['storytel'] = _storytel
 
-            if settings.open_library_enabled:
-                def _open_library():
-                    return self._search_open_library(query), 0
-                tasks['open_library'] = _open_library
+        if settings.open_library_enabled:
+            def _open_library():
+                return self._search_open_library(query), 0
+            tasks['open_library'] = _open_library
+
+        # Apply provider filter: restrict to a single provider when requested
+        if provider and provider in tasks:
+            tasks = {provider: tasks[provider]}
+        elif provider:
+            return {}  # requested provider not enabled
+
+        # author/narrator flags are Audible-specific; exclude other providers
+        # when those flags are set and no explicit provider filter was given
+        if not provider and (author_search or narrator_search):
+            tasks = {k: v for k, v in tasks.items() if k == 'audible'}
 
         if not tasks:
             return {}
