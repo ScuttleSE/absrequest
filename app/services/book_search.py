@@ -242,7 +242,7 @@ class BookSearchService:
             )
             resp.raise_for_status()
             data = resp.json()
-            books = (data.get('books') or [])[:10]
+            books = data.get('books') or []
         except Exception as exc:
             logger.warning('Storytel search failed: %s', exc)
             return []
