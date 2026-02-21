@@ -79,6 +79,37 @@
         </div>
       </div>
 
+      <!-- Storytel -->
+      <div class="border rounded p-3 mb-3">
+        <div class="form-check form-switch mb-2">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            role="switch"
+            id="storytel_enabled"
+            name="storytel_enabled"
+            {% if settings.storytel_enabled %}checked{% endif %}
+          >
+          <label class="form-check-label fw-semibold" for="storytel_enabled">
+            <span class="badge text-bg-info text-dark me-1">Storytel</span>
+            Storytel
+          </label>
+        </div>
+        <div class="ms-4">
+          <label class="form-label small text-muted mb-1" for="storytel_locale">Locale</label>
+          <input
+            type="text"
+            class="form-control form-control-sm"
+            id="storytel_locale"
+            name="storytel_locale"
+            value="{{ settings.storytel_locale }}"
+            placeholder="e.g. en, sv, de, fr"
+            style="max-width: 180px;"
+          >
+          <div class="text-muted small mt-1">Two-letter locale code used for the Storytel search.</div>
+        </div>
+      </div>
+
       <!-- Open Library -->
       <div class="border rounded p-3">
         <div class="form-check form-switch">

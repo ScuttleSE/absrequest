@@ -296,6 +296,8 @@ def settings():
         s.audible_region = ','.join(selected) if selected else 'us'
         s.audible_language = request.form.get('audible_language', '').strip()
         s.open_library_enabled = 'open_library_enabled' in request.form
+        s.storytel_enabled = 'storytel_enabled' in request.form
+        s.storytel_locale = request.form.get('storytel_locale', 'en').strip() or 'en'
         db.session.commit()
         flash('Settings saved.', 'success')
         return redirect(url_for('manager.settings'))

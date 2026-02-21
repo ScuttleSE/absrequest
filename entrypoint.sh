@@ -11,6 +11,8 @@ with app.app_context():
     # Safe column additions for existing installs (db.create_all skips existing tables)
     migrations = [
         "ALTER TABLE app_settings ADD COLUMN audible_language VARCHAR(50) NOT NULL DEFAULT 'english'",
+        "ALTER TABLE app_settings ADD COLUMN storytel_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE app_settings ADD COLUMN storytel_locale VARCHAR(10) NOT NULL DEFAULT 'en'",
     ]
     for sql in migrations:
         try:

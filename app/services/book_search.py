@@ -53,6 +53,11 @@ class BookSearchService:
             if results:
                 return results, total
 
+        if settings.storytel_enabled:
+            results = self._search_storytel(query, locale=settings.storytel_locale)
+            if results:
+                return results, 0
+
         if settings.open_library_enabled:
             return self._search_open_library(query), 0
 
@@ -217,6 +222,101 @@ class BookSearchService:
             'duration': duration,
             'description': description,
             'source': 'audible',
+        }
+
+    # ── Storytel ───────────────────────────────────────────────────────────────
+
+    def _search_storytel(self, query: str, locale: str = 'en') -> list[dict]:
+        """Search Storytel's public API."""
+        clean_query = query.split(':')[0].strip()
+        formatted_query = clean_query.replace(' ', '+')
+        try:
+            resp = requests.get(
+                'https://www.storytel.com/api/search.action',
+                params={
+                    'request_locale': locale or 'en',
+                    'q': formatted_query,
+                },
+                headers={'User-Agent': 'Storytel ABS-Scraper'},
+                timeout=self.TIMEOUT,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            books = (data.get('books') or [])[:10]
+        except Exception as exc:
+            logger.warning('Storytel search failed: %s', exc)
+            return []
+
+        results = []
+        for entry in books:
+            parsed = self._parse_storytel(entry)
+            if parsed:
+                results.append(parsed)
+        return results
+
+    def _parse_storytel(self, entry: dict) -> dict | None:
+        """Map a Storytel search result to our internal result format."""
+        slb = entry.get('slb') or entry
+        book = slb.get('book') or {}
+        abook = slb.get('abook')
+        ebook = slb.get('ebook')
+
+        if not book.get('id'):
+            return None
+        if not abook and not ebook:
+            return None
+
+        title = (book.get('name') or '').strip()
+        if not title:
+            return None
+
+        author = (book.get('authorsAsString') or '').strip() or None
+
+        narrator = None
+        if abook:
+            narrator = (abook.get('narratorAsString') or '').strip() or None
+
+        cover_url = None
+        large_cover = book.get('largeCover')
+        if large_cover:
+            cover_url = f'https://storytel.com{large_cover.replace("320x320", "640x640")}'
+
+        duration = None
+        if abook:
+            length_ms = abook.get('length')
+            if length_ms:
+                try:
+                    mins = int(length_ms) // 60000
+                    h, m = divmod(mins, 60)
+                    duration = f'{h}h {m}m' if h else f'{m}m'
+                except (TypeError, ValueError):
+                    pass
+
+        description = None
+        if abook:
+            description = (abook.get('description') or '').strip() or None
+        if not description and ebook:
+            description = (ebook.get('description') or '').strip() or None
+        if description:
+            description = re.sub(r'<[^>]+>', '', description).strip() or None
+
+        isbn = None
+        if abook:
+            isbn = (abook.get('isbn') or '').strip() or None
+        if not isbn and ebook:
+            isbn = (ebook.get('isbn') or '').strip() or None
+
+        return {
+            'title': title,
+            'author': author,
+            'narrator': narrator,
+            'cover_url': cover_url,
+            'isbn': isbn,
+            'asin': None,
+            'google_books_id': None,
+            'duration': duration,
+            'description': description,
+            'source': 'storytel',
         }
 
     # ── Open Library ───────────────────────────────────────────────────────────

@@ -94,6 +94,9 @@ class AppSettings(db.Model):
     # Language filter passed to the Audible API, e.g. "english". Empty = no filter.
     audible_language = db.Column(db.String(50), nullable=False, default='english')
     open_library_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    storytel_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    # Locale for Storytel API, e.g. "en", "sv", "de"
+    storytel_locale = db.Column(db.String(10), nullable=False, default='en')
 
     @property
     def audible_regions(self) -> list[str]:

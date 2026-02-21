@@ -103,6 +103,8 @@
         <div class="d-flex flex-wrap gap-1 mb-2">
           {% if result.source == 'audible' %}
           <span class="badge text-bg-warning text-dark">Audible</span>
+          {% elif result.source == 'storytel' %}
+          <span class="badge text-bg-info text-dark">Storytel</span>
           {% elif result.source == 'open_library' %}
           <span class="badge text-bg-secondary">Open Library</span>
           {% endif %}
