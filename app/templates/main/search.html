@@ -2,61 +2,17 @@
 
 {% block title %}Search — ABS Request Manager{% endblock %}
 
-{% block content %}
-
-<!-- ── Search bar ────────────────────────────────────────────────────────────── -->
-<form action="{{ url_for('main.search') }}" method="GET" class="mb-4">
-  <div class="input-group">
-    <input
-      type="text"
-      name="q"
-      value="{{ query }}"
-      class="form-control form-control-lg"
-      placeholder="Search by title, author, or ISBN…"
-      aria-label="Search"
-    >
-    <button class="btn btn-primary btn-lg" type="submit">
-      <i class="bi bi-search me-1"></i>Search
-    </button>
-  </div>
-</form>
-
-<!-- ── Results header ────────────────────────────────────────────────────────── -->
-{% if results %}
-
-{% if author_search %}
-<div class="alert alert-secondary d-flex align-items-center gap-2 mb-3" role="alert">
-  <i class="bi bi-person-fill flex-shrink-0"></i>
-  <span>
-    Showing books by author <strong>{{ query }}</strong>.
-    <a href="{{ url_for('main.search', q=query) }}" class="alert-link ms-1">Search all results instead</a>
-  </span>
-</div>
-{% elif narrator_search %}
-<div class="alert alert-secondary d-flex align-items-center gap-2 mb-3" role="alert">
-  <i class="bi bi-mic-fill flex-shrink-0"></i>
-  <span>
-    Showing books narrated by <strong>{{ query }}</strong>.
-    <a href="{{ url_for('main.search', q=query) }}" class="alert-link ms-1">Search all results instead</a>
-  </span>
-</div>
-{% endif %}
-
-{% if any_certain_match %}
-<div class="alert alert-warning d-flex align-items-center gap-2 mb-3" role="alert">
-  <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
-  Some results may already be in your Audiobookshelf library. Check before requesting.
-</div>
-{% endif %}
+{# ── Macro: render a results grid + pagination for one provider ──────────────── #}
+{% macro result_cards(pdata, query, page, author_search, narrator_search, tab) %}
 
 <p class="text-muted mb-3">
-  <strong>{{ total_pages * 25 if total_pages else results|length }}</strong> result{{ 's' if (total_pages or 1) > 1 or results|length != 1 else '' }} for
+  <strong>{{ pdata.total if pdata.total else pdata.results|length }}</strong>
+  result{{ 's' if pdata.total != 1 and pdata.results|length != 1 else '' }} for
   &ldquo;<em>{{ query }}</em>&rdquo;
 </p>
 
-<!-- ── Results grid ──────────────────────────────────────────────────────────── -->
 <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
-  {% for result in results %}
+  {% for result in pdata.results %}
   <div class="col">
     <div class="card h-100 shadow-sm">
 
@@ -111,33 +67,33 @@
 
           {% if result.abs_match %}
           {% set match_body %}{{ result.abs_match_title }}{% if result.abs_match_author %} &mdash; {{ result.abs_match_author }}{% endif %}{% endset %}
-            {% if result.abs_match_certain %}
-            <span
-              class="badge text-bg-danger"
-              role="button"
-              tabindex="0"
-              data-bs-toggle="popover"
-              data-bs-trigger="click"
-              data-bs-placement="top"
-              data-bs-title="Found in ABS library"
-              data-bs-content="{{ match_body }}"
-            >
-              <i class="bi bi-exclamation-triangle-fill me-1"></i>In Library
-            </span>
-            {% else %}
-            <span
-              class="badge text-bg-warning text-dark"
-              role="button"
-              tabindex="0"
-              data-bs-toggle="popover"
-              data-bs-trigger="click"
-              data-bs-placement="top"
-              data-bs-title="Possible match in ABS library"
-              data-bs-content="{{ match_body }}"
-            >
-              <i class="bi bi-question-circle me-1"></i>Possibly in Library
-            </span>
-            {% endif %}
+          {% if result.abs_match_certain %}
+          <span
+            class="badge text-bg-danger"
+            role="button"
+            tabindex="0"
+            data-bs-toggle="popover"
+            data-bs-trigger="click"
+            data-bs-placement="top"
+            data-bs-title="Found in ABS library"
+            data-bs-content="{{ match_body }}"
+          >
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>In Library
+          </span>
+          {% else %}
+          <span
+            class="badge text-bg-warning text-dark"
+            role="button"
+            tabindex="0"
+            data-bs-toggle="popover"
+            data-bs-trigger="click"
+            data-bs-placement="top"
+            data-bs-title="Possible match in ABS library"
+            data-bs-content="{{ match_body }}"
+          >
+            <i class="bi bi-question-circle me-1"></i>Possibly in Library
+          </span>
+          {% endif %}
           {% endif %}
         </div>
 
@@ -169,12 +125,12 @@
   {% endfor %}
 </div>
 
-<!-- ── Pagination ─────────────────────────────────────────────────────────────── -->
-{% if total_pages and total_pages > 1 %}
+<!-- Pagination (only for providers that support it, i.e. Audible) -->
+{% if pdata.total_pages and pdata.total_pages > 1 %}
 <nav class="mt-4 d-flex justify-content-between align-items-center">
   {% if page > 1 %}
   <a
-    href="{{ url_for('main.search', q=query, page=page - 1, author_search=1 if author_search else None, narrator_search=1 if narrator_search else None) }}"
+    href="{{ url_for('main.search', q=query, page=page-1, tab=tab if tab else None, author_search=1 if author_search else None, narrator_search=1 if narrator_search else None) }}"
     class="btn btn-outline-secondary"
   >
     <i class="bi bi-chevron-left me-1"></i>Previous
@@ -183,11 +139,11 @@
   <span></span>
   {% endif %}
 
-  <span class="text-muted small">Page {{ page }} of {{ total_pages }}</span>
+  <span class="text-muted small">Page {{ page }} of {{ pdata.total_pages }}</span>
 
-  {% if page < total_pages %}
+  {% if page < pdata.total_pages %}
   <a
-    href="{{ url_for('main.search', q=query, page=page + 1, author_search=1 if author_search else None, narrator_search=1 if narrator_search else None) }}"
+    href="{{ url_for('main.search', q=query, page=page+1, tab=tab if tab else None, author_search=1 if author_search else None, narrator_search=1 if narrator_search else None) }}"
     class="btn btn-outline-secondary"
   >
     Next<i class="bi bi-chevron-right ms-1"></i>
@@ -198,19 +154,126 @@
 </nav>
 {% endif %}
 
+{% endmacro %}
+
+
+{% block content %}
+
+<!-- ── Search bar ────────────────────────────────────────────────────────────── -->
+<form action="{{ url_for('main.search') }}" method="GET" class="mb-4">
+  <div class="input-group">
+    <input
+      type="text"
+      name="q"
+      value="{{ query }}"
+      class="form-control form-control-lg"
+      placeholder="Search by title, author, or ISBN…"
+      aria-label="Search"
+    >
+    <button class="btn btn-primary btn-lg" type="submit">
+      <i class="bi bi-search me-1"></i>Search
+    </button>
+  </div>
+</form>
+
+{% if provider_data %}
+
+<!-- ── Search mode banners ────────────────────────────────────────────────────── -->
+{% if author_search %}
+<div class="alert alert-secondary d-flex align-items-center gap-2 mb-3" role="alert">
+  <i class="bi bi-person-fill flex-shrink-0"></i>
+  <span>
+    Showing books by author <strong>{{ query }}</strong>.
+    <a href="{{ url_for('main.search', q=query) }}" class="alert-link ms-1">Search all results instead</a>
+  </span>
+</div>
+{% elif narrator_search %}
+<div class="alert alert-secondary d-flex align-items-center gap-2 mb-3" role="alert">
+  <i class="bi bi-mic-fill flex-shrink-0"></i>
+  <span>
+    Showing books narrated by <strong>{{ query }}</strong>.
+    <a href="{{ url_for('main.search', q=query) }}" class="alert-link ms-1">Search all results instead</a>
+  </span>
+</div>
+{% endif %}
+
+{% if any_certain_match %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-3" role="alert">
+  <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+  Some results may already be in your Audiobookshelf library. Check before requesting.
+</div>
+{% endif %}
+
+{% if provider_data|length > 1 %}
+
+<!-- ── Multi-provider tabs ────────────────────────────────────────────────────── -->
+<ul class="nav nav-tabs mb-4" id="providerTabs" role="tablist">
+  {% for provider, pdata in provider_data.items() %}
+  <li class="nav-item" role="presentation">
+    <button
+      class="nav-link {% if provider == active_tab %}active{% endif %}"
+      id="tab-{{ provider }}-btn"
+      data-bs-toggle="tab"
+      data-bs-target="#tab-{{ provider }}"
+      data-provider="{{ provider }}"
+      type="button"
+      role="tab"
+      aria-controls="tab-{{ provider }}"
+      aria-selected="{{ 'true' if provider == active_tab else 'false' }}"
+    >
+      {% if provider == 'audible' %}
+      <span class="badge text-bg-warning text-dark me-1">A</span>Audible
+      {% elif provider == 'storytel' %}
+      <span class="badge text-bg-info text-dark me-1">S</span>Storytel
+      {% elif provider == 'open_library' %}
+      <span class="badge text-bg-secondary me-1">OL</span>Open Library
+      {% else %}
+      {{ provider }}
+      {% endif %}
+      <span class="badge rounded-pill bg-secondary ms-1">{{ pdata.results|length }}</span>
+    </button>
+  </li>
+  {% endfor %}
+</ul>
+
+<div class="tab-content" id="providerTabContent">
+  {% for provider, pdata in provider_data.items() %}
+  <div
+    class="tab-pane fade {% if provider == active_tab %}show active{% endif %}"
+    id="tab-{{ provider }}"
+    role="tabpanel"
+    aria-labelledby="tab-{{ provider }}-btn"
+  >
+    {{ result_cards(pdata, query, page, author_search, narrator_search, provider) }}
+  </div>
+  {% endfor %}
+</div>
+
 {% else %}
+
+<!-- ── Single provider — no tab chrome ───────────────────────────────────────── -->
+{% for provider, pdata in provider_data.items() %}{% if loop.first %}
+{{ result_cards(pdata, query, page, author_search, narrator_search, '') }}
+{% endif %}{% endfor %}
+
+{% endif %}
+
+{% else %}
+
 <!-- ── No results ─────────────────────────────────────────────────────────────── -->
 <div class="text-center text-muted py-5">
   <i class="bi bi-search display-4 d-block mb-3"></i>
   <p class="lead mb-1">No results found for &ldquo;<em>{{ query }}</em>&rdquo;</p>
   <p class="small">Try a different title, author name, or ISBN.</p>
 </div>
+
 {% endif %}
 
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Popovers for ABS match badges
 document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
   new bootstrap.Popover(el, { html: false });
   el.addEventListener('shown.bs.popover', function () {
@@ -220,6 +283,17 @@ document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
         document.removeEventListener('click', dismiss);
       }
     });
+  });
+});
+
+// Keep ?tab= in the URL when switching tabs so pagination links stay correct
+document.querySelectorAll('#providerTabs button[data-provider]').forEach(function (btn) {
+  btn.addEventListener('shown.bs.tab', function (e) {
+    var provider = e.target.getAttribute('data-provider');
+    var url = new URL(window.location);
+    url.searchParams.set('tab', provider);
+    url.searchParams.delete('page');
+    history.replaceState(null, '', url.toString());
   });
 });
 </script>

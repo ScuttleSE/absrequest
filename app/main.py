@@ -69,6 +69,44 @@ def _get_abs_items() -> list[dict]:
     return items
 
 
+def _annotate_results(results: list[dict], matcher, abs_items: list) -> list[dict]:
+    """Annotate search results with already_requested and ABS match info."""
+    for result in results:
+        isbn = result.get('isbn')
+        google_books_id = result.get('google_books_id')
+        asin = result.get('asin')
+
+        already_requested = False
+        conditions = _build_or_filter(isbn, google_books_id, asin)
+        if conditions:
+            existing = AudiobookRequest.query.filter(
+                AudiobookRequest.user_id == current_user.id,
+                AudiobookRequest.status.in_(_ACTIVE_STATUSES),
+                or_(*conditions),
+            ).first()
+            already_requested = existing is not None
+        result['already_requested'] = already_requested
+
+        if matcher:
+            check = matcher.check_single(
+                result.get('title', ''),
+                result.get('author', ''),
+                abs_items,
+            )
+            result['abs_match'] = check['found']
+            result['abs_match_certain'] = check['is_certain']
+            match = check.get('match') or {}
+            result['abs_match_title'] = match.get('title', '')
+            result['abs_match_author'] = match.get('author', '')
+        else:
+            result['abs_match'] = False
+            result['abs_match_certain'] = False
+            result['abs_match_title'] = ''
+            result['abs_match_author'] = ''
+
+    return results
+
+
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
 
@@ -100,13 +138,8 @@ def search():
 
     author_search = request.args.get('author_search') == '1'
     narrator_search = request.args.get('narrator_search') == '1'
-    results, total_results = BookSearchService().search(
-        q, page=page, author_search=author_search, narrator_search=narrator_search
-    )
-    page_size = 25
-    total_pages = max(1, (total_results + page_size - 1) // page_size) if total_results else None
 
-    # ── ABS matching ──────────────────────────────────────────────────────────
+    # ── ABS matching setup ────────────────────────────────────────────────────
     abs_items = _get_abs_items()
     matcher = None
     if abs_items:
@@ -114,50 +147,44 @@ def search():
         threshold = float(current_app.config.get('ABS_MATCH_THRESHOLD', 0.85))
         matcher = LibraryMatcher(threshold=threshold)
 
-    # ── Annotate each result ──────────────────────────────────────────────────
-    for result in results:
-        isbn = result.get('isbn')
-        google_books_id = result.get('google_books_id')
-        asin = result.get('asin')
+    # ── Search all providers in parallel ─────────────────────────────────────
+    page_size = 25
+    raw = BookSearchService().search_all_providers(
+        q, page=page, author_search=author_search, narrator_search=narrator_search
+    )
 
-        # already_requested check
-        already_requested = False
-        conditions = _build_or_filter(isbn, google_books_id, asin)
-        if conditions:
-            existing = AudiobookRequest.query.filter(
-                AudiobookRequest.user_id == current_user.id,
-                AudiobookRequest.status.in_(_ACTIVE_STATUSES),
-                or_(*conditions),
-            ).first()
-            already_requested = existing is not None
-        result['already_requested'] = already_requested
+    # Annotate and compute per-provider metadata
+    provider_data: dict[str, dict] = {}
+    for provider, (results, total) in raw.items():
+        _annotate_results(results, matcher, abs_items)
+        total_pages = max(1, (total + page_size - 1) // page_size) if total else None
+        provider_data[provider] = {
+            'results': results,
+            'total': total,
+            'total_pages': total_pages,
+        }
 
-        # ABS match
-        if matcher:
-            check = matcher.check_single(
-                result.get('title', ''),
-                result.get('author', ''),
-                abs_items,
-            )
-            result['abs_match'] = check['found']
-            result['abs_match_certain'] = check['is_certain']
-            match = check.get('match') or {}
-            result['abs_match_title'] = match.get('title', '')
-            result['abs_match_author'] = match.get('author', '')
-        else:
-            result['abs_match'] = False
-            result['abs_match_certain'] = False
-            result['abs_match_title'] = ''
-            result['abs_match_author'] = ''
+    # Determine which tab to show first
+    requested_tab = request.args.get('tab', '')
+    if requested_tab in provider_data:
+        active_tab = requested_tab
+    elif provider_data:
+        active_tab = next(iter(provider_data))
+    else:
+        active_tab = ''
 
-    any_certain = any(r.get('abs_match_certain') for r in results)
+    any_certain = any(
+        r.get('abs_match_certain')
+        for pdata in provider_data.values()
+        for r in pdata['results']
+    )
 
     return render_template(
         'main/search.html',
-        results=results,
+        provider_data=provider_data,
+        active_tab=active_tab,
         query=q,
         page=page,
-        total_pages=total_pages,
         author_search=author_search,
         narrator_search=narrator_search,
         any_certain_match=any_certain,

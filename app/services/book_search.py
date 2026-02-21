@@ -32,36 +32,58 @@ class BookSearchService:
 
     TIMEOUT = 10  # seconds
 
-    def search(
+    def search_all_providers(
         self, query: str, page: int = 1, author_search: bool = False, narrator_search: bool = False
-    ) -> tuple[list[dict], int]:
-        """Search enabled providers in order: Audible → Open Library.
+    ) -> dict[str, tuple[list[dict], int]]:
+        """Search all enabled providers in parallel.
 
-        Returns (results, total_results).
-        author_search uses the Audible `author` parameter.
-        narrator_search uses the Audible `narrator` parameter.
+        Returns a dict mapping provider name → (results, total_results).
+        For author/narrator searches only Audible is queried (those params are
+        Audible-specific), so the dict will contain at most one key.
         """
         from app.models import AppSettings
         settings = AppSettings.get()
 
+        # Build the set of callables to run
+        tasks: dict[str, any] = {}
+
         if settings.audible_enabled:
-            results, total = self._search_audible_regions(
-                query, settings.audible_regions, page=page,
-                author_search=author_search, narrator_search=narrator_search,
-                language=settings.audible_language,
-            )
-            if results:
-                return results, total
+            def _audible():
+                return self._search_audible_regions(
+                    query, settings.audible_regions, page=page,
+                    author_search=author_search, narrator_search=narrator_search,
+                    language=settings.audible_language,
+                )
+            tasks['audible'] = _audible
 
-        if settings.storytel_enabled:
-            results = self._search_storytel(query, locale=settings.storytel_locale)
-            if results:
-                return results, 0
+        # Storytel and Open Library don't understand author/narrator params
+        if not author_search and not narrator_search:
+            if settings.storytel_enabled:
+                def _storytel():
+                    return self._search_storytel(query, locale=settings.storytel_locale), 0
+                tasks['storytel'] = _storytel
 
-        if settings.open_library_enabled:
-            return self._search_open_library(query), 0
+            if settings.open_library_enabled:
+                def _open_library():
+                    return self._search_open_library(query), 0
+                tasks['open_library'] = _open_library
 
-        return [], 0
+        if not tasks:
+            return {}
+
+        results: dict[str, tuple[list[dict], int]] = {}
+        with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+            futures = {executor.submit(fn): name for name, fn in tasks.items()}
+            for future in as_completed(futures):
+                name = futures[future]
+                try:
+                    provider_results, total = future.result()
+                    if provider_results:
+                        results[name] = (provider_results, total)
+                except Exception as exc:
+                    logger.warning('Provider %s search failed: %s', name, exc)
+
+        return results
 
     def _search_audible_regions(
         self, query: str, regions: list[str], page: int = 1,
